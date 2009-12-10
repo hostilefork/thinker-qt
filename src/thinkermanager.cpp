@@ -111,10 +111,7 @@ void ThinkerManager::ensureThinkersPaused(const codeplace& cp)
 
 	i.toFront();
 
-	// Second pass: wait for all the thinkers to actually get their code off
-	// the stack.  This means we won't be changing the document out from
-	// under them.  If we do make a document change that would have
-	// affected their understanding, we will stop them.
+	// Second pass: wait for all the thinkers to actually get their code off the stack.
 	while (i.hasNext()) {
 		i.next();
 		ThinkerThread* thread (i.value());
@@ -162,7 +159,6 @@ ThinkerObject& ThinkerManager::getThinkerForThread(const ThinkerThread* thinkerT
 
 void ThinkerManager::requestAndWaitForAbortButAlreadyAbortedIsOkay(ThinkerObject& thinker)
 {
-	/* hopefully(thinker._isComplete != false, HERE); */ // TODO: temporarily removing this assert!
 	ThinkerThread* thinkerThread (maybeGetThreadForThinker(thinker));
 	if(thinkerThread == NULL) {
 		thinker.state = ThinkerObject::Aborted;

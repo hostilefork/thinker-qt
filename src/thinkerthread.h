@@ -78,9 +78,7 @@ friend QTextStream& operator << (QTextStream& o, const State& state);
 private:
 
 	tracked< State > state;
-	 // only one person should be waiting on this, max.
-	// it's for communication between the worker and the thinker
-	// so use wakeOne *only*!
+	// it's for communication between one manager and one thinker so use wakeOne()
 	mutable QWaitCondition stateChangeSignal;
 	mutable QMutex signalMutex;
 	QSharedPointer< ThinkerThreadHelper > helper;

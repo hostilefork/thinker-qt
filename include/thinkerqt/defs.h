@@ -27,6 +27,4 @@
 #include "hoist/hoist.h"
 using namespace hoist;
 
-#undef Q_NO_EXCEPTIONS
-
 #endif
