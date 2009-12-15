@@ -28,13 +28,6 @@
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
 **
-**
-**
-**
-**
-**
-**
-**
 ** $QT_END_LICENSE$
 **
 ****************************************************************************/
@@ -43,7 +36,6 @@
 
 #include "mandelbrotwidget.h"
 
-//! [0]
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
@@ -51,4 +43,3 @@ int main(int argc, char *argv[])
     widget.show();
     return app.exec();
 }
-//! [0]

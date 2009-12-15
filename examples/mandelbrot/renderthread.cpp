@@ -28,13 +28,6 @@
 ** If you have questions regarding the use of this file, please contact
 ** Nokia at qt-info@nokia.com.
 **
-**
-**
-**
-**
-**
-**
-**
 ** $QT_END_LICENSE$
 **
 ****************************************************************************/
@@ -45,7 +38,6 @@
 
 #include "renderthread.h"
 
-//! [0]
 RenderThread::RenderThread(QObject *parent)
     : QThread(parent)
 {
@@ -55,9 +47,7 @@ RenderThread::RenderThread(QObject *parent)
     for (int i = 0; i < ColormapSize; ++i)
         colormap[i] = rgbFromWaveLength(380.0 + (i * 400.0 / ColormapSize));
 }
-//! [0]
 
-//! [1]
 RenderThread::~RenderThread()
 {
     mutex.lock();
@@ -67,9 +57,7 @@ RenderThread::~RenderThread()
 
     wait();
 }
-//! [1]
 
-//! [2]
 void RenderThread::render(double centerX, double centerY, double scaleFactor,
                           QSize resultSize)
 {
@@ -87,9 +75,7 @@ void RenderThread::render(double centerX, double centerY, double scaleFactor,
         condition.wakeOne();
     }
 }
-//! [2]
 
-//! [3]
 void RenderThread::run()
 {
     forever {
@@ -99,11 +85,8 @@ void RenderThread::run()
         double centerX = this->centerX;
         double centerY = this->centerY;
         mutex.unlock();
-//! [3]
 
-//! [4]
         int halfWidth = resultSize.width() / 2;
-//! [4] //! [5]
         int halfHeight = resultSize.height() / 2;
         QImage image(resultSize, QImage::Format_RGB32);
 
@@ -158,25 +141,18 @@ void RenderThread::run()
             } else {
                 if (!restart)
                     emit renderedImage(image, scaleFactor);
-//! [5] //! [6]
                 ++pass;
             }
-//! [6] //! [7]
         }
-//! [7]
 
-//! [8]
         mutex.lock();
-//! [8] //! [9]
         if (!restart)
             condition.wait(&mutex);
         restart = false;
         mutex.unlock();
     }
 }
-//! [9]
 
-//! [10]
 uint RenderThread::rgbFromWaveLength(double wave)
 {
     double r = 0.0;
@@ -213,4 +189,3 @@ uint RenderThread::rgbFromWaveLength(double wave)
     b = pow(b * s, 0.8);
     return qRgb(int(r * 255), int(g * 255), int(b * 255));
 }
-//! [10]
