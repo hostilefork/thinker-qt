@@ -24,6 +24,7 @@
 
 #include <QTimer>
 #include <QTime>
+#include <QAtomicInt>
 
 #include "defs.h"
 
@@ -50,10 +51,11 @@ class SignalThrottler : protected QTimer
 private:
 	QTime lastEmit; // when was the last emit?  (null if never)
 	QTime nextEmit; // when is the next emit scheduled?  (null if none)
-	unsigned long millisecondsDefault;
+	QAtomicInt millisecondsDefault;
 
 public:
-	SignalThrottler (unsigned long millisecondsDefault = 0, QObject* parent = NULL);
+	SignalThrottler (unsigned int milliseconds = 0, QObject* parent = NULL);
+	void setMillisecondsDefault(unsigned int milliseconds);
 
 signals:
 	void throttled();
@@ -70,7 +72,7 @@ public slots:
 	void emitThrottled();
 
 public:
-	void emitThrottled(unsigned long milliseconds);
+	void emitThrottled(unsigned int milliseconds);
 
 	// Because we are dealing with a delay, it may be the case that
 	// we don't want the signal to happen.  Postpone clears any

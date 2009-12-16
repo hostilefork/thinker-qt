@@ -204,6 +204,11 @@ void ThinkerManager::ensureThinkerFinished(ThinkerObject& thinker)
 	}
 }
 
+void ThinkerManager::throttleNotificationFrequency(ThinkerObject& thinker, unsigned int milliseconds)
+{
+	thinker.progressThrottler->setMillisecondsDefault(milliseconds);
+}
+
 void ThinkerManager::onThreadFinished()
 {
 	hopefullyCurrentThreadIsManager(HERE);

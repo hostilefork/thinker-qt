@@ -116,7 +116,7 @@ protected:
 
 	/* virtual */ void lockForWrite(const codeplace& cp);
 	/* virtual */ void unlock(const codeplace& cp);
-#ifndef THINKERQT_MUST_MARK_LOCKS
+#ifndef THINKERQT_REQUIRE_CODEPLACE
 	// This will cause the any asserts to indicate a failure in thinker.h instead
 	// line instead of the offending line in the caller... not as good... see hoist
 	// documentation http://hostilefork.com/hoist/
@@ -188,9 +188,25 @@ public:
 	typedef typename Snapshottable< DataType >::Snapshot Snapshot;
 
 public:
+	// This is the most efficient and general constructor, which does not
+	// require your state object to be default-constructible.  See notes in
+	// snapshottable about the other constructor variants.
+
 	Thinker (ThinkerManager& mgr, QSharedDataPointer< DataType > d) :
 		ThinkerObject (mgr),
 		Snapshottable< DataType > (d)
+	{
+	}
+
+	Thinker (ThinkerManager& mgr, const DataType& d) :
+		ThinkerObject (mgr),
+		Snapshottable< DataType > (d)
+	{
+	}
+
+	Thinker  (ThinkerManager& mgr) :
+		ThinkerObject (mgr),
+		Snapshottable< DataType > ()
 	{
 	}
 
@@ -217,7 +233,7 @@ public:
 	{
 		return Snapshottable< DataType >::writable(cp);
 	}
-#ifndef THINKERQT_MUST_MARK_LOCKS
+#ifndef THINKERQT_REQUIRE_CODEPLACE
 	// This will cause the any asserts to indicate a failure in thinker.h instead
 	// line instead of the offending line in the caller... not as good... see hoist
 	// documentation http://hostilefork.com/hoist/

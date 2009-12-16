@@ -32,7 +32,7 @@ ThinkerObject::ThinkerObject (ThinkerManager& mgr) :
 	state (StillThinking),
 	mgr (mgr),
 	wasAttachedToRunner (false),
-	progressThrottler (new SignalThrottler (200, this))
+	progressThrottler (new SignalThrottler (200, this)) // is 200 milliseconds a good default?
 {
 	getManager().hopefullyCurrentThreadIsManager(HERE);
 

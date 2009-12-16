@@ -46,6 +46,8 @@ class ThinkerThreadHelper;
 
 class ThinkerRunnerBase
 {
+	Q_DISABLE_COPY(ThinkerRunnerBase)
+
 protected:
 	QSharedPointer< ThinkerObject > thinker;
 
@@ -180,9 +182,33 @@ public:
 	void ensureThinkersPaused(const codeplace& cp);
 	void ensureThinkersResumed(const codeplace& cp);
 
+#ifndef THINKERQT_REQUIRE_CODEPLACE
+	// This will cause the any asserts to indicate a failure in thinkermanager.h instead
+	// line instead of the offending line in the caller... not as good... see hoist
+	// documentation http://hostilefork.com/hoist/
+
+	template<class ThinkerType>
+	QSharedPointer< ThinkerRunner< ThinkerType > > makeRunner(QSharedPointer< ThinkerType > thinker) {
+		return makeRunner(thinker, HERE);
+	}
+	QSharedPointer< ThinkerRunnerBase > makeRunnerBase(QSharedPointer< ThinkerObject > thinker) {
+		return makeRunnerBase(thinker, HERE);
+	}
+	void ensureThinkersPaused()
+	{
+		ensureThinkersPaused(HERE);
+	}
+	void ensureThinkersResumed()
+	{
+		ensureThinkersResumed(HERE);
+	}
+#endif
+
 	void requestAndWaitForAbortButAlreadyAbortedIsOkay(ThinkerObject& thinker);
 
 	void ensureThinkerFinished(ThinkerObject& thinker);
+
+	void throttleNotificationFrequency(ThinkerObject& thinker, unsigned int milliseconds);
 
 public slots:
 	// TODO: review implications of

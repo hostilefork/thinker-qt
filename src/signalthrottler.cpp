@@ -21,12 +21,20 @@
 
 #include "thinkerqt/signalthrottler.h"
 
-SignalThrottler::SignalThrottler (unsigned long milliseconds, QObject* parent) :
+SignalThrottler::SignalThrottler (unsigned int milliseconds, QObject* parent) :
 	QTimer (parent),
-	millisecondsDefault (milliseconds)
+	millisecondsDefault (cast_hopefully<int>(milliseconds, HERE))
 {
 	setSingleShot(true);
 	connect(this, SIGNAL(timeout()), this, SLOT(onTimeout()));
+}
+
+void SignalThrottler::setMillisecondsDefault(unsigned int milliseconds)
+{
+	// TODO: better formalize signal throttler thread semantics.  This lets you change
+	// the throttle but any emits (including one currently being processed) will
+	// possibly use the old value
+	millisecondsDefault.fetchAndStoreRelaxed(cast_hopefully<int>(milliseconds, HERE));
 }
 
 void SignalThrottler::onTimeout()
@@ -41,8 +49,11 @@ void SignalThrottler::emitThrottled()
 	emitThrottled(millisecondsDefault);
 }
 
-void SignalThrottler::emitThrottled(unsigned long milliseconds)
+void SignalThrottler::emitThrottled(unsigned int milliseconds)
 {
+	// can't risk multiple threads trying to call this routine at the same time
+	hopefully(QThread::currentThread() == thread(), HERE);
+
 	// There is some overhead associated with timers, signals, etc.
 	// Don't set a timer if the time we'd wait to signal is less than that value.
 	// TODO: get this number from timing data, perhaps gathered at startup?
