@@ -46,14 +46,14 @@ class ThinkerThread;
 //	http://doc.trolltech.com/qq/qq15-academic.html
 //
 
-class ThinkerObject : public QObject, virtual public SnapshottableBase {
+class ThinkerObject : protected QObject, virtual public SnapshottableBase {
 	Q_OBJECT
 
 private:
 	enum State {
-		StillThinking,
-		DoneThinking,
-		Aborted
+		Thinking,
+		Finished,
+		Canceled
 	};
 
 private:
@@ -63,7 +63,7 @@ private:
 	State state;
 	ThinkerManager& mgr;
 	bool wasAttachedToRunner;
-	SignalThrottler* progressThrottler;
+	SignalThrottler* notificationThrottler;
 
 friend class ThinkerManager;
 
@@ -90,25 +90,25 @@ protected:
 	// immediately run.  This hook lets you do some bookkeeping
 	// when the runner goes away.
 
-	virtual void beforeRunnerDetach()
-	{
-	}
+	virtual void beforeRunnerDetach();
 
 friend class ThinkerRunnerBase;
 
 public:
-	virtual void afterThreadAttach()
-	{
-	}
-
-	virtual void beforeThreadDetach()
-	{
-	}
+	virtual void afterThreadAttach();
+	virtual void beforeThreadDetach();
 
 friend class ThinkerThread;
 
 signals:
 	void madeProgress();
+public:
+	// To help eliminate the misunderstanding of introducing control signals designed to
+	// change a thinker from the simple forward path of start=>pause=>continue/stop,
+	// it does not directly expose itself as a QObject.  But you do have to connect
+	// and disconnect progress signals from it.  This narrower API is for that.
+	bool connectProgressTo(const QObject * receiver, const char * member);
+	bool disconnectProgressFrom(const QObject * receiver, const char * member = 0);
 
 protected:
 	// These overrides provide added checking and also signal

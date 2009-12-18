@@ -57,13 +57,13 @@ class ThinkerThread : public QThread
 private:
 	enum State {
 		Initializing, // => Thinking
-		Thinking, // => Pausing, Aborting, Finished
+		Thinking, // => Pausing, Canceling, Finished
 		Pausing, // => Paused
-		Paused, // => Aborted, Continuing
-		Aborting, // => Aborted
-		Aborted, // terminal
-		Continuing, // => Thinking
-		Finished // => Aborted
+		Paused, // => Canceled, Resuming
+		Canceling, // => Canceled
+		Canceled, // terminal
+		Resuming, // => Thinking
+		Finished // => Canceled
 	};
 
 private:
@@ -115,10 +115,10 @@ signals:
 	void detachingFromThinker();
 
 private:
-	void requestPauseCore(bool isAbortedOkay, const codeplace& cp);
-	void waitForPauseCore(bool isAbortedOkay);
-	void requestAbortCore(bool isAlreadyAbortedOkay, const codeplace& cp);
-	void requestResumeCore(bool isAbortedOkay, const codeplace& cp);
+	void requestPauseCore(bool isCanceledOkay, const codeplace& cp);
+	void waitForPauseCore(bool isCanceledOkay);
+	void requestCancelCore(bool isAlreadyCanceledOkay, const codeplace& cp);
+	void requestResumeCore(bool isCanceledOkay, const codeplace& cp);
 
 public slots:
 	void requestPause(const codeplace& cp) {
@@ -128,26 +128,26 @@ public slots:
 		waitForPauseCore(false);
 	}
 
-	void requestPauseButAbortedIsOkay(const codeplace& cp) {
+	void requestPauseButCanceledIsOkay(const codeplace& cp) {
 		requestPauseCore(true, cp);
 	}
-	void waitForPauseButAbortedIsOkay() {
+	void waitForPauseButCanceledIsOkay() {
 		waitForPauseCore(true);
 	}
 
-	void requestAbort(const codeplace& cp) {
-		requestAbortCore(false, cp);
+	void requestCancel(const codeplace& cp) {
+		requestCancelCore(false, cp);
 	}
-	void requestAbortButAlreadyAbortedIsOkay(const codeplace& cp) {
-		requestAbortCore(true, cp);
+	void requestCancelButAlreadyCanceledIsOkay(const codeplace& cp) {
+		requestCancelCore(true, cp);
 	}
 
-	void waitForAbort(); // no variant because we can't distinguish between an abort we asked for and
+	void waitForCancel(); // no variant because we can't distinguish between an abort we asked for and
 
 	void requestResume(const codeplace& cp) {
 		requestResumeCore(false, cp);
 	}
-	void requestResumeButAbortedIsOkay(const codeplace& cp) {
+	void requestResumeButCanceledIsOkay(const codeplace& cp) {
 		requestResumeCore(true, cp);
 	}
 	void waitForResume(const codeplace& cp);
@@ -156,7 +156,7 @@ public slots:
 
 public:
 	bool isComplete() const;
-	bool isAborted() const;
+	bool isCanceled() const;
 	bool isPaused() const;
 	bool isPauseRequested(unsigned long time = 0) const;
 #ifndef Q_NO_EXCEPTIONS

@@ -29,19 +29,35 @@
 
 ThinkerObject::ThinkerObject (ThinkerManager& mgr) :
 	QObject (),
-	state (StillThinking),
+	state (Thinking),
 	mgr (mgr),
 	wasAttachedToRunner (false),
-	progressThrottler (new SignalThrottler (200, this)) // is 200 milliseconds a good default?
+	notificationThrottler (new SignalThrottler (200, this)) // is 200 milliseconds a good default?
 {
 	getManager().hopefullyCurrentThreadIsManager(HERE);
 
-	connect(progressThrottler->getAsQObject(), SIGNAL(throttled()), this, SIGNAL(madeProgress()), Qt::DirectConnection);
+	connect(notificationThrottler->getAsQObject(), SIGNAL(throttled()), this, SIGNAL(madeProgress()), Qt::DirectConnection);
 }
 
 ThinkerManager& ThinkerObject::getManager() const
 {
 	return mgr;
+}
+
+void ThinkerObject::beforeRunnerDetach()
+{
+	// TODO: any cleaner if we stop emitting the signal instead of disconnecting
+	// from all those listening for it?  Or should we throw up an error if someone
+	// tries to call the progress connectors after this point?
+	disconnect(this, SIGNAL(madeProgress()), 0, 0);
+}
+
+void ThinkerObject::afterThreadAttach()
+{
+}
+
+void ThinkerObject::beforeThreadDetach()
+{
 }
 
 void ThinkerObject::lockForWrite(const codeplace& cp)
@@ -62,7 +78,7 @@ void ThinkerObject::unlock(const codeplace& cp)
 {
 	if (wasAttachedToRunner) {
 		getManager().hopefullyCurrentThreadIsThinker(HERE);
-		progressThrottler->emitThrottled();
+		notificationThrottler->emitThrottled();
 	} else {
 		// we do not emit a progress signal if we're in
 		// the time between base class running and
@@ -75,6 +91,16 @@ void ThinkerObject::unlock(const codeplace& cp)
 	}
 
 	SnapshottableBase::unlock(cp);
+}
+
+bool ThinkerObject::connectProgressTo(const QObject * receiver, const char * member)
+{
+	return connect(this, SIGNAL(madeProgress()), receiver, member);
+}
+
+bool ThinkerObject::disconnectProgressFrom(const QObject * receiver, const char * member)
+{
+	return disconnect(this, SIGNAL(madeProgress()), receiver, member);
 }
 
 bool ThinkerObject::isPauseRequested(unsigned long time) const

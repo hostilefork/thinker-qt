@@ -62,14 +62,14 @@ ThinkerRunnerBase::~ThinkerRunnerBase()
 
 	ThinkerThread* thinkerThread (thinker->getManager().maybeGetThreadForThinker(*thinker));
 	if (thinkerThread != NULL) {
-		// No need to enforceAbort at this point (which would cause a
+		// No need to enforceCancel at this point (which would cause a
 		// synchronous pause of the worker thread that we'd like to avoid)
 		// ...although unruly thinkers may seem to "leak" if they stall too
 		// long before responding to isPauseRequested() signals
 
 		// The bulkhead may have become invalidated which means it
 		// could already be aborted.
-		thinkerThread->requestAbortButAlreadyAbortedIsOkay(HERE);
+		thinkerThread->requestCancelButAlreadyCanceledIsOkay(HERE);
 	}
 }
 
@@ -106,7 +106,7 @@ void ThinkerManager::ensureThinkersPaused(const codeplace& cp)
 	while (i.hasNext()) {
 		i.next();
 		ThinkerThread* thread (i.value());
-		thread->requestPauseButAbortedIsOkay(cp);
+		thread->requestPauseButCanceledIsOkay(cp);
 	}
 
 	i.toFront();
@@ -115,7 +115,7 @@ void ThinkerManager::ensureThinkersPaused(const codeplace& cp)
 	while (i.hasNext()) {
 		i.next();
 		ThinkerThread* thread (i.value());
-		thread->waitForPauseButAbortedIsOkay();
+		thread->waitForPauseButCanceledIsOkay();
 	}
 }
 
@@ -129,7 +129,7 @@ void ThinkerManager::ensureThinkersResumed(const codeplace& cp)
 	while (i.hasNext()) {
 		i.next();
 		ThinkerThread* thread (i.value());
-		thread->requestResumeButAbortedIsOkay(cp);
+		thread->requestResumeButCanceledIsOkay(cp);
 	}
 }
 
@@ -157,30 +157,30 @@ ThinkerObject& ThinkerManager::getThinkerForThread(const ThinkerThread* thinkerT
 	return const_cast< ThinkerThread* >(thinkerThread)->getThinker();
 }
 
-void ThinkerManager::requestAndWaitForAbortButAlreadyAbortedIsOkay(ThinkerObject& thinker)
+void ThinkerManager::requestAndWaitForCancelButAlreadyCanceledIsOkay(ThinkerObject& thinker)
 {
 	ThinkerThread* thinkerThread (maybeGetThreadForThinker(thinker));
 	if(thinkerThread == NULL) {
-		thinker.state = ThinkerObject::Aborted;
+		thinker.state = ThinkerObject::Canceled;
 	} else {
 		// thread should be paused or finished... or possibly aborted
-		thinkerThread->requestAbortButAlreadyAbortedIsOkay(HERE);
-		thinkerThread->waitForAbort();
+		thinkerThread->requestCancelButAlreadyCanceledIsOkay(HERE);
+		thinkerThread->waitForCancel();
 		// manager's responsibility to update the thinker's state, not directly sync'd to
 		// thread state (only when thread is terminated).
-		thinker.state = ThinkerObject::Aborted;
+		thinker.state = ThinkerObject::Canceled;
 	}
-	hopefully(thinker.state == ThinkerObject::Aborted, HERE);
+	hopefully(thinker.state == ThinkerObject::Canceled, HERE);
 }
 
 void ThinkerManager::ensureThinkerFinished(ThinkerObject& thinker)
 {
 	hopefullyCurrentThreadIsManager(HERE);
 
-	if (thinker.state != ThinkerObject::DoneThinking) {
+	if (thinker.state != ThinkerObject::Finished) {
 		ThinkerThread* thinkerThread (maybeGetThreadForThinker(thinker));
 		if (thinkerThread != NULL) {
-			hopefully(not thinkerThread->isAborted(), HERE); // can't finish if it's aborted or invalid!
+			hopefully(not thinkerThread->isCanceled(), HERE); // can't finish if it's aborted or invalid!
 
 			// make sure thread is resumed and finishes...
 			bool threadComplete (thinkerThread->isComplete());
@@ -194,19 +194,19 @@ void ThinkerManager::ensureThinkerFinished(ThinkerObject& thinker)
 		}
 	}
 
-	hopefully(thinker.state != ThinkerObject::Aborted, HERE); // can't finish if it's aborted or invalid!
+	hopefully(thinker.state != ThinkerObject::Canceled, HERE); // can't finish if it's aborted or invalid!
 
 	if (false) {
 		// It would be nice if this completion signal could be true by the time we reach here
 		// unfortunately this is not set until the message loop runs... hmmm.
 
-		hopefully(thinker.state == ThinkerObject::DoneThinking, HERE);
+		hopefully(thinker.state == ThinkerObject::Finished, HERE);
 	}
 }
 
 void ThinkerManager::throttleNotificationFrequency(ThinkerObject& thinker, unsigned int milliseconds)
 {
-	thinker.progressThrottler->setMillisecondsDefault(milliseconds);
+	thinker.notificationThrottler->setMillisecondsDefault(milliseconds);
 }
 
 void ThinkerManager::onThreadFinished()
@@ -216,10 +216,10 @@ void ThinkerManager::onThreadFinished()
 	ThinkerThread& thread (*cast_hopefully< ThinkerThread* >(sender(), HERE));
 	ThinkerObject& thinker (thread.getThinker());
 
-	if (thread.isAborted()) {
-		thinker.state = ThinkerObject::Aborted;
+	if (thread.isCanceled()) {
+		thinker.state = ThinkerObject::Canceled;
 	} else if (thread.isComplete()) {
-		thinker.state = ThinkerObject::DoneThinking;
+		thinker.state = ThinkerObject::Finished;
 	} else {
 		hopefullyNotReached(HERE);
 	}
@@ -239,6 +239,6 @@ ThinkerManager::~ThinkerManager()
 	while (i.hasNext()) {
 		i.next();
 		ThinkerThread* thread (i.value());
-		thread->waitForAbort();
+		thread->waitForCancel();
 	}
 }

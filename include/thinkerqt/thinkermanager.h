@@ -204,7 +204,7 @@ public:
 	}
 #endif
 
-	void requestAndWaitForAbortButAlreadyAbortedIsOkay(ThinkerObject& thinker);
+	void requestAndWaitForCancelButAlreadyCanceledIsOkay(ThinkerObject& thinker);
 
 	void ensureThinkerFinished(ThinkerObject& thinker);
 

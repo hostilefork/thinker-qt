@@ -43,14 +43,14 @@ inline QTextStream& operator << (QTextStream& o, const ThinkerThread::State& sta
 	case ThinkerThread::Paused:
 		o << "Paused";
 		break;
-	case ThinkerThread::Aborting:
-		o << "Aborting";
+	case ThinkerThread::Canceling:
+		o << "Canceling";
 		break;
-	case ThinkerThread::Aborted:
-		o << "Aborted";
+	case ThinkerThread::Canceled:
+		o << "Canceled";
 		break;
-	case ThinkerThread::Continuing:
-		o << "Continuing";
+	case ThinkerThread::Resuming:
+		o << "Resuming";
 		break;
 	case ThinkerThread::Finished:
 		o << "Finished";
@@ -85,10 +85,10 @@ void ThinkerThreadHelper::queuedQuit()
 void ThinkerThreadHelper::markFinished()
 {
 	hopefully(QThread::currentThread() == thread, HERE);
-	hopefully(thread->isRunning(), HERE);
+	hopefully(static_cast<QThread*>(thread)->isRunning(), HERE);
 
 	thread->signalMutex.lock();
-	if (thread->state == ThinkerThread::Aborting) {
+	if (thread->state == ThinkerThread::Canceling) {
 		// we don't let it transition to finished if abort is requested
 	} else {
 		thread->state.hopefullyInSet(ThinkerThread::Thinking, ThinkerThread::Pausing, HERE);
@@ -166,8 +166,8 @@ void ThinkerThread::run()
 	bool possiblyAbleToContinue (false);
 #endif
 
-	bool didAbortOrFinish (false);
-	while (not didAbortOrFinish) {
+	bool didCancelOrFinish (false);
+	while (not didCancelOrFinish) {
 
 		// there should be a startThinking() or continueThinking() message queued...
 
@@ -190,19 +190,19 @@ void ThinkerThread::run()
 		// pause or fully stop the thinker.
 
 		// even if the thinker has finished, however, we can overwrite that with
-		// a "Aborted" transition if the work the thinker has done was invalidated
+		// a "Canceled" transition if the work the thinker has done was invalidated
 
 		signalMutex.lock();
 
 		if (state == Finished) {
 
-			didAbortOrFinish = true;
+			didCancelOrFinish = true;
 
-		} else if (state == Aborting) {
+		} else if (state == Canceling) {
 
-			state.hopefullyTransition(Aborting, Aborted, HERE);
+			state.hopefullyTransition(Canceling, Canceled, HERE);
 			stateChangeSignal.wakeOne();
-			didAbortOrFinish = true;
+			didCancelOrFinish = true;
 
 		} else {
 
@@ -212,11 +212,11 @@ void ThinkerThread::run()
 
 			// Once we are paused, we just wait for a signal that we are to
 			// either be aborted or continue.  (Because we are paused
-			// there is no need to pass through a "Aborting" state while
+			// there is no need to pass through a "Canceling" state while
 			// the event loop is still running.)
 
-			if (state == Aborted) {
-				didAbortOrFinish = true;
+			if (state == Canceled) {
+				didCancelOrFinish = true;
 			} else {
 #ifndef Q_NO_EXCEPTIONS
 				// ...the Thinker may not have continueThinking implemented, even if
@@ -224,7 +224,7 @@ void ThinkerThread::run()
 				// the exception variation)
 				hopefully(possiblyAbleToContinue, HERE);
 #endif
-				state.hopefullyTransition(Continuing, Thinking, HERE);
+				state.hopefullyTransition(Resuming, Thinking, HERE);
 				stateChangeSignal.wakeOne();
 			}
 		}
@@ -237,7 +237,7 @@ void ThinkerThread::run()
 	helper.clear();
 }
 
-void ThinkerThread::requestPauseCore(bool isAbortedOkay, const codeplace& cp)
+void ThinkerThread::requestPauseCore(bool isCanceledOkay, const codeplace& cp)
 {
 	getManager().hopefullyCurrentThreadIsManager(HERE);
 
@@ -251,7 +251,7 @@ void ThinkerThread::requestPauseCore(bool isAbortedOkay, const codeplace& cp)
 	}
 	if (state == Finished) {
 		// do nothing
-	} else if (isAbortedOkay and ((state == Aborting) or (state == Aborted))) {
+	} else if (isCanceledOkay and ((state == Canceling) or (state == Canceled))) {
 		// do nothing
 	} else {
 		state.hopefullyTransition(Thinking, Pausing, cp);
@@ -263,19 +263,19 @@ void ThinkerThread::requestPauseCore(bool isAbortedOkay, const codeplace& cp)
 	signalMutex.unlock();
 }
 
-void ThinkerThread::waitForPauseCore(bool isAbortedOkay)
+void ThinkerThread::waitForPauseCore(bool isCanceledOkay)
 {
 	getManager().hopefullyCurrentThreadIsManager(HERE);
 
 	signalMutex.lock();
 	if ((state == Finished) or (state == Paused)) {
 		// do nothing
-	} else if (isAbortedOkay and (state == Aborted)) {
+	} else if (isCanceledOkay and (state == Canceled)) {
 		// do nothing
-	} else if (isAbortedOkay and (state == Aborting)) {
+	} else if (isCanceledOkay and (state == Canceling)) {
 		setPriority(QThread::NormalPriority);
 		stateChangeSignal.wait(&signalMutex);
-		state.hopefullyEqualTo(Aborted, HERE);
+		state.hopefullyEqualTo(Canceled, HERE);
 	} else {
 		state.hopefullyEqualTo(Pausing, HERE);
 		setPriority(QThread::NormalPriority); // raise it up if we slowed it down...
@@ -285,7 +285,7 @@ void ThinkerThread::waitForPauseCore(bool isAbortedOkay)
 	signalMutex.unlock();
 }
 
-void ThinkerThread::requestAbortCore(bool isAbortedOkay, const codeplace& cp)
+void ThinkerThread::requestCancelCore(bool isCanceledOkay, const codeplace& cp)
 {
 	getManager().hopefullyCurrentThreadIsManager(HERE);
 
@@ -298,18 +298,18 @@ void ThinkerThread::requestAbortCore(bool isAbortedOkay, const codeplace& cp)
 		stateChangeSignal.wait(&signalMutex);
 	}
 	if (state == Finished) {
-		state.hopefullyTransition(Finished, Aborted, cp);
+		state.hopefullyTransition(Finished, Canceled, cp);
 		stateChangeSignal.wakeOne();
 	} else if (state == Paused) {
-		state.hopefullyTransition(Paused, Aborted, cp);
+		state.hopefullyTransition(Paused, Canceled, cp);
 		stateChangeSignal.wakeOne();
-	} else if (isAbortedOkay and (state == Aborted)) {
+	} else if (isCanceledOkay and (state == Canceled)) {
 		// do nothing
 	} else {
 		// No one can request a pause or stop besides the worker
 		// We should not multiply request stops and pauses...
 		// so if it's not initializing and not finished it must be thinking!
-		state.hopefullyTransition(Thinking, Aborting, cp);
+		state.hopefullyTransition(Thinking, Canceling, cp);
 		stateChangeSignal.wakeOne();
 		setPriority(QThread::LowPriority);
 
@@ -318,34 +318,34 @@ void ThinkerThread::requestAbortCore(bool isAbortedOkay, const codeplace& cp)
 	signalMutex.unlock();
 }
 
-void ThinkerThread::waitForAbort()
+void ThinkerThread::waitForCancel()
 {
 	getManager().hopefullyCurrentThreadIsManager(HERE);
 
 	signalMutex.lock();
-	if (state == Aborting) {
+	if (state == Canceling) {
 		setPriority(QThread::NormalPriority); // raise it up if we slowed it down...
 		stateChangeSignal.wait(&signalMutex);
 	}
-	state.hopefullyEqualTo(Aborted, HERE);
+	state.hopefullyEqualTo(Canceled, HERE);
 	signalMutex.unlock();
 }
 
-void ThinkerThread::requestResumeCore(bool isAbortedOkay, const codeplace& cp)
+void ThinkerThread::requestResumeCore(bool isCanceledOkay, const codeplace& cp)
 {
 	getManager().hopefullyCurrentThreadIsManager(HERE);
 
-	waitForPauseCore(isAbortedOkay);
+	waitForPauseCore(isCanceledOkay);
 
 	signalMutex.lock();
 	if (state == Finished) {
 		// do nothing
-	} else if (isAbortedOkay and (state == Aborted)) {
+	} else if (isCanceledOkay and (state == Canceled)) {
 		// do nothing
 	} else {
-		state.hopefullyTransition(Paused, Continuing, cp);
+		state.hopefullyTransition(Paused, Resuming, cp);
 		stateChangeSignal.wakeOne(); // only one person should be waiting on this, max...
-		hopefully(isRunning(), cp);
+		hopefully(QThread::isRunning(), cp);
 		setPriority(QThread::NormalPriority);
 		emit continueThinking();
 	}
@@ -360,10 +360,10 @@ void ThinkerThread::waitForResume(const codeplace&cp)
 	if ((state == Thinking) or (state == Finished)) {
 		// do nothing
 	} else {
-		state.hopefullyEqualTo(Continuing, HERE);
+		state.hopefullyEqualTo(Resuming, HERE);
 		setPriority(QThread::NormalPriority); // raise it up if we slowed it down...
 		stateChangeSignal.wait(&signalMutex);
-		state.hopefullyInSet(Continuing, Thinking, Finished, HERE);
+		state.hopefullyInSet(Resuming, Thinking, Finished, HERE);
 	}
 	signalMutex.unlock();
 }
@@ -396,13 +396,13 @@ bool ThinkerThread::isComplete() const {
 		case Thinking:
 		case Pausing:
 		case Paused:
-		case Continuing:
+		case Resuming:
 			result = false;
 			break;
 		case Finished:
 			result = true;
 			break;
-		case Aborted:
+		case Canceled:
 			// used to return indeterminate here but removed tribool/boost dependency
 			result = false;
 			break;
@@ -413,12 +413,12 @@ bool ThinkerThread::isComplete() const {
 	return result;
 }
 
-bool ThinkerThread::isAborted() const {
+bool ThinkerThread::isCanceled() const {
 	getManager().hopefullyCurrentThreadIsManager(HERE);
 
 	bool result (false);
 	signalMutex.lock();
-	result = (state == Aborted);
+	result = (state == Canceled);
 	signalMutex.unlock();
 	return result;
 }
@@ -444,7 +444,7 @@ bool ThinkerThread::isPauseRequested(unsigned long time) const
 	bool result (false);
 
 	signalMutex.lock();
-	if ((state == Pausing) or (state == Aborting)) {
+	if ((state == Pausing) or (state == Canceling)) {
 		result = true;
 	} else {
 		state.hopefullyEqualTo(Thinking, HERE);
@@ -453,7 +453,7 @@ bool ThinkerThread::isPauseRequested(unsigned long time) const
 		} else {
 			bool didStateChange (stateChangeSignal.wait(&signalMutex, time));
 			if (didStateChange)
-				state.hopefullyInSet(Pausing, Aborting, HERE);
+				state.hopefullyInSet(Pausing, Canceling, HERE);
 			else
 				state.hopefullyEqualTo(Thinking, HERE); // should not have changed
 			result = didStateChange;
@@ -477,6 +477,6 @@ ThinkerThread::~ThinkerThread()
 	getManager().hopefullyCurrentThreadIsManager(HERE);
 
 	hopefully(wait(), HERE);
-	hopefully(not isRunning(), HERE);
-	state.hopefullyInSet(Aborted, Finished, HERE);
+	hopefully(not QThread::isRunning(), HERE);
+	state.hopefullyInSet(Canceled, Finished, HERE);
 }
