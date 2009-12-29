@@ -31,7 +31,7 @@ ThinkerObject::ThinkerObject (ThinkerManager& mgr) :
 	QObject (),
 	state (Thinking),
 	mgr (mgr),
-	wasAttachedToRunner (false),
+	wasAttachedToPresent (false),
 	notificationThrottler (new SignalThrottler (200, this)) // is 200 milliseconds a good default?
 {
 	getManager().hopefullyCurrentThreadIsManager(HERE);
@@ -44,7 +44,7 @@ ThinkerManager& ThinkerObject::getManager() const
 	return mgr;
 }
 
-void ThinkerObject::beforeRunnerDetach()
+void ThinkerObject::beforePresentDetach()
 {
 	// TODO: any cleaner if we stop emitting the signal instead of disconnecting
 	// from all those listening for it?  Or should we throw up an error if someone
@@ -62,13 +62,13 @@ void ThinkerObject::beforeThreadDetach()
 
 void ThinkerObject::lockForWrite(const codeplace& cp)
 {
-	if (wasAttachedToRunner) {
+	if (wasAttachedToPresent) {
 		getManager().hopefullyCurrentThreadIsThinker(HERE);
 	} else {
 		// we currently allow locking a thinker for writing
 		// on the manager thread between the time the
 		// Snapshot base class constructor has run
-		// and when it is attached to a ThinkerRunner
+		// and when it is attached to a ThinkerPresent
 		getManager().hopefullyCurrentThreadIsManager(HERE);
 	}
 	SnapshottableBase::lockForWrite(cp);
@@ -76,17 +76,17 @@ void ThinkerObject::lockForWrite(const codeplace& cp)
 
 void ThinkerObject::unlock(const codeplace& cp)
 {
-	if (wasAttachedToRunner) {
+	if (wasAttachedToPresent) {
 		getManager().hopefullyCurrentThreadIsThinker(HERE);
 		notificationThrottler->emitThrottled();
 	} else {
 		// we do not emit a progress signal if we're in
 		// the time between base class running and
-		// being attached to a ThinkerRunner.  In fact,
+		// being attached to a ThinkerPresent.  In fact,
 		// makeSnapshot should also be disabled
 		// during this time.  Perhaps inherit privately
 		// and then attach the snapshot function
-		// to the ThinkerRunner?
+		// to the ThinkerPresent?
 		getManager().hopefullyCurrentThreadIsManager(HERE);
 	}
 

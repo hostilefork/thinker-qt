@@ -27,6 +27,7 @@
 #include "defs.h"
 #include "snapshottable.h"
 #include "signalthrottler.h"
+#include "thinkerrunner.h"
 
 class ThinkerManager;
 class ThinkerThread;
@@ -62,7 +63,7 @@ private:
 
 	State state;
 	ThinkerManager& mgr;
-	bool wasAttachedToRunner;
+	bool wasAttachedToPresent;
 	SignalThrottler* notificationThrottler;
 
 friend class ThinkerManager;
@@ -90,9 +91,9 @@ protected:
 	// immediately run.  This hook lets you do some bookkeeping
 	// when the runner goes away.
 
-	virtual void beforeRunnerDetach();
+	virtual void beforePresentDetach();
 
-friend class ThinkerRunnerBase;
+friend class ThinkerPresentBase;
 
 public:
 	virtual void afterThreadAttach();
@@ -175,7 +176,7 @@ public:
 // In order to get finer control over when and how snapshots can be
 // taken, we inherit *privately* from the Snapshottable.  This disables
 // direct calls to Snapshottable::makeSnapshot.  Instead, snapshots
-// are made through ThinkerRunner.  When designing your own
+// are made through ThinkerPresent.  When designing your own
 // Thinker-derived types you are free to get rid of that limitation, but
 // it can be a good sanity check to keep thinkers from snapshotting
 // themselves...
@@ -186,6 +187,40 @@ class Thinker : public ThinkerObject, virtual private Snapshottable< DataTypePar
 public:
 	typedef DataTypeParam DataType;
 	typedef typename Snapshottable< DataType >::Snapshot Snapshot;
+
+public:
+	class Present : public ThinkerPresentBase
+	{
+	public:
+		Present () :
+			ThinkerPresentBase ()
+		{
+		}
+		Present (const Present& other) :
+			ThinkerPresentBase (other)
+		{
+		}
+	protected:
+		Present (QSharedPointer< ThinkerObject > thinker) :
+			ThinkerPresentBase (thinker)
+		{
+		}
+		friend class ThinkerManager;
+	public:
+		typename Thinker::Snapshot createSnapshot() const
+		{
+			hopefullyCurrentThreadIsManager(HERE);
+			SnapshotBase* allocatedSnapshot (createSnapshotBase());
+			Snapshot result (*cast_hopefully< Snapshot* >(allocatedSnapshot, HERE));
+			delete allocatedSnapshot;
+			return result;
+		}
+
+	public:
+		/* virtual */ ~Present()
+		{
+		}
+	};
 
 public:
 	// This is the most efficient and general constructor, which does not
@@ -211,11 +246,11 @@ public:
 	}
 
 private:
-	// You call makeSnapshot from the ThinkerRunner and not from the
+	// You call makeSnapshot from the ThinkerPresent and not from the
 	// thinker itself.
 
-	template< class T > friend class ThinkerRunner;
-	QSharedPointer< Snapshot > makeSnapshot()
+	/*template< class T >*/ friend class Present;
+	Snapshot makeSnapshot()
 	{
 		return Snapshottable< DataType >::makeSnapshot();
 	}

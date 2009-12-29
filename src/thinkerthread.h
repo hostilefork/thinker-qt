@@ -76,7 +76,7 @@ private:
 friend QTextStream& operator << (QTextStream& o, const State& state);
 
 private:
-
+friend class ThinkerManager; // TEMPORARY!
 	tracked< State > state;
 	// it's for communication between one manager and one thinker so use wakeOne()
 	mutable QWaitCondition stateChangeSignal;

@@ -418,7 +418,7 @@ bool ThinkerThread::isCanceled() const {
 
 	bool result (false);
 	signalMutex.lock();
-	result = (state == Canceled);
+	result = (state == Canceled) or (state == Canceling);
 	signalMutex.unlock();
 	return result;
 }
@@ -428,7 +428,7 @@ bool ThinkerThread::isPaused() const {
 
 	bool result (false);
 	signalMutex.lock();
-	result = (state == Paused);
+	result = (state == Paused) or (state == Pausing);
 	if (result) {
 		tracked< bool > debugPausedThinkers (true, HERE);
 		chronicle(debugPausedThinkers, "ThinkerObject was paused by " + state.whereLastAssigned().toString(), HERE);

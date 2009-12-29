@@ -23,58 +23,6 @@
 #include "thinkerqt/thinkermanager.h"
 
 //
-// ThinkerRunner
-//
-
-ThinkerRunnerBase::ThinkerRunnerBase (QSharedPointer< ThinkerObject > thinker) :
-	thinker (thinker)
-{
-}
-
-bool ThinkerRunnerBase::hopefullyCurrentThreadIsManager(const codeplace& cp)
-{
-	return thinker->getManager().hopefullyCurrentThreadIsManager(cp);
-}
-
-ThinkerObject& ThinkerRunnerBase::getThinkerBase() {
-	hopefullyCurrentThreadIsManager(HERE);
-	return *thinker;
-}
-
-QSharedPointer< SnapshotBase > ThinkerRunnerBase::makeSnapshotBase()
-{
-	hopefullyCurrentThreadIsManager(HERE);
-	return static_cast< SnapshottableBase* >(thinker.data())->makeSnapshotBase();
-}
-
-ThinkerRunnerBase::~ThinkerRunnerBase()
-{
-	// We need to be able to map descriptors to thinkers, but the problem is that
-	// a thinker thread still running which we haven't been able to terminate yet
-	// may exist for a descriptor that we now have a *new* thinker for.  So we
-	// have to clean up any structures that treat this thinker as relevant when
-	// we might allocate a new one...
-	thinker->beforeRunnerDetach();
-
-	// we leave _wasAttachedToRunner as true here...
-	// it may still be running and we want readable()/writable() to still work
-	// from the thinker thread
-
-	ThinkerThread* thinkerThread (thinker->getManager().maybeGetThreadForThinker(*thinker));
-	if (thinkerThread != NULL) {
-		// No need to enforceCancel at this point (which would cause a
-		// synchronous pause of the worker thread that we'd like to avoid)
-		// ...although unruly thinkers may seem to "leak" if they stall too
-		// long before responding to isPauseRequested() signals
-
-		// The bulkhead may have become invalidated which means it
-		// could already be aborted.
-		thinkerThread->requestCancelButAlreadyCanceledIsOkay(HERE);
-	}
-}
-
-
-//
 // ThinkerManager
 //
 
@@ -180,6 +128,7 @@ void ThinkerManager::ensureThinkerFinished(ThinkerObject& thinker)
 	if (thinker.state != ThinkerObject::Finished) {
 		ThinkerThread* thinkerThread (maybeGetThreadForThinker(thinker));
 		if (thinkerThread != NULL) {
+			thinkerThread->state.hopefullyNotEqualTo(ThinkerThread::Canceled, HERE);
 			hopefully(not thinkerThread->isCanceled(), HERE); // can't finish if it's aborted or invalid!
 
 			// make sure thread is resumed and finishes...

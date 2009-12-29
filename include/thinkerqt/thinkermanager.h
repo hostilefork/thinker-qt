@@ -26,70 +26,10 @@
 
 #include "defs.h"
 #include "thinker.h"
+#include "thinkerrunner.h"
 
 class ThinkerThread;
 class ThinkerThreadHelper;
-
-//
-// ThinkerRunner
-//
-// When you ask the ThinkerManager to start running a thinker, it hands you
-// back a shared pointer to a ThinkerRunner object.  When your last shared
-// pointer to this object goes away, that is the indication that you want
-// the manager to abandon the Thinker.
-//
-// However, Thinkers run on their own threads and may not terminate
-// immediately.  If you have to do any bookkeeping at the moment a
-// ThinkerRunner is destroyed, make sure to put that in the
-// Thinker::beforeRunnerDetach method.
-//
-
-class ThinkerRunnerBase
-{
-	Q_DISABLE_COPY(ThinkerRunnerBase)
-
-protected:
-	QSharedPointer< ThinkerObject > thinker;
-
-public:
-	ThinkerRunnerBase (QSharedPointer< ThinkerObject > thinker);
-
-protected:
-	bool hopefullyCurrentThreadIsManager(const codeplace& cp);
-
-public:
-	ThinkerObject& getThinkerBase();
-	QSharedPointer< SnapshotBase > makeSnapshotBase();
-
-public:
-	virtual ~ThinkerRunnerBase();
-};
-
-template< class ThinkerType >
-class ThinkerRunner : public ThinkerRunnerBase
-{
-public:
-	ThinkerRunner (QSharedPointer< ThinkerType > thinker) :
-		ThinkerRunnerBase (thinker)
-	{
-	}
-public:
-	ThinkerType& getThinker() {
-		hopefullyCurrentThreadIsManager(HERE);
-		return *cast_hopefully< ThinkerType* >(thinker.data(), HERE);
-	}
-	QSharedPointer< typename ThinkerType::Snapshot > makeSnapshot()
-	{
-		hopefullyCurrentThreadIsManager(HERE);
-		return cast_hopefully< ThinkerType* >(thinker.data(), HERE)->makeSnapshot();
-	}
-
-public:
-	/* virtual */ ~ThinkerRunner()
-	{
-	}
-};
-
 
 //
 // ThinkerManager
@@ -107,7 +47,7 @@ class ThinkerManager : public QObject {
 friend class ThinkerObject;
 friend class ThinkerThread;
 friend class ThinkerThreadHelper;
-friend class ThinkerRunnerBase;
+friend class ThinkerPresentBase;
 
 public:
 	ThinkerManager ();
@@ -157,26 +97,35 @@ private:
 
 public:
 	template<class ThinkerType>
-	QSharedPointer< ThinkerRunner< ThinkerType > > makeRunner(QSharedPointer< ThinkerType > thinker, const codeplace& cp) {
+	typename ThinkerType::Present run(QSharedPointer< ThinkerType > thinker, const codeplace& cp) {
 		hopefullyCurrentThreadIsManager(cp);
 		hopefully(not thinker.isNull(), cp);
-		hopefully(not thinker->wasAttachedToRunner, cp);
-		thinker->wasAttachedToRunner = true;
+		hopefully(not thinker->wasAttachedToPresent, cp);
+		thinker->wasAttachedToPresent = true;
 
 		createThreadForThinker(thinker);
 
-		return QSharedPointer< ThinkerRunner< ThinkerType > >(new ThinkerRunner< ThinkerType >(thinker));
+		return typename ThinkerType::Present (thinker);
 	}
 
-	QSharedPointer< ThinkerRunnerBase > makeRunnerBase(QSharedPointer< ThinkerObject > thinker, const codeplace& cp) {
+	ThinkerPresentBase runBase(QSharedPointer< ThinkerObject > thinker, const codeplace& cp) {
 		hopefullyCurrentThreadIsManager(cp);
 		hopefully(not thinker.isNull(), cp);
-		hopefully(not thinker->wasAttachedToRunner, cp);
-		thinker->wasAttachedToRunner = true;
+		hopefully(not thinker->wasAttachedToPresent, cp);
+		thinker->wasAttachedToPresent = true;
 
 		createThreadForThinker(thinker);
 
-		return QSharedPointer< ThinkerRunnerBase >(new ThinkerRunnerBase (thinker));
+		return ThinkerPresentBase (thinker);
+	}
+
+	// If you pass in a raw pointer instead of a shared pointer, the manager will take
+	// ownership of the thinker via shared pointer
+	template<class ThinkerType>
+	typename ThinkerType::Present run(ThinkerType* thinker, const codeplace& cp) {
+		hopefully(thinker != NULL, cp);
+		hopefully(thinker->parent() == NULL, cp);
+		return run(QSharedPointer< ThinkerType >(thinker));
 	}
 
 	void ensureThinkersPaused(const codeplace& cp);
@@ -188,11 +137,15 @@ public:
 	// documentation http://hostilefork.com/hoist/
 
 	template<class ThinkerType>
-	QSharedPointer< ThinkerRunner< ThinkerType > > makeRunner(QSharedPointer< ThinkerType > thinker) {
-		return makeRunner(thinker, HERE);
+	typename ThinkerType::Present run(QSharedPointer< ThinkerType > thinker) {
+		return run(thinker, HERE);
 	}
-	QSharedPointer< ThinkerRunnerBase > makeRunnerBase(QSharedPointer< ThinkerObject > thinker) {
-		return makeRunnerBase(thinker, HERE);
+	template<class ThinkerType>
+	typename ThinkerType::Present run(ThinkerType* thinker) {
+		return run(thinker, HERE);
+	}
+	ThinkerPresentBase runBase(QSharedPointer< ThinkerObject > thinker) {
+		return runBase(thinker, HERE);
 	}
 	void ensureThinkersPaused()
 	{

@@ -94,6 +94,7 @@ private:
 	// (...in the Snapshot< Derived > template...)
 
 public:
+	virtual void clear() = 0;
 	virtual const SnapshottableData* dataBase() const = 0;
 };
 
@@ -123,17 +124,13 @@ public:
 	SnapshottableBase ();
 
 public:
-	// makeSnapshot and friends return a QSharedPointer<>
-	//
-	// Though I considered rethinking this to make Snapshot and
-	// SnapshotBase an implicitly shared type (thus this could return
-	// just a SnapshotBase instead), it can't work because that would
-	// require moving the data definition into the base class (to make
-	// assignment safe), and that breaks the QSharedDataPointer
-	// requirement of having the literal derived type resident in
-	// the class.
+	// makeSnapshotBase returns a pointer to an allocated object
+	// due to technical restrictions, but createSnapshot proper returns
+	// an implicitly shared type
 
-	virtual QSharedPointer< SnapshotBase > makeSnapshotBase() const = 0;
+	// TrollTech uses "create" when applied to factory-style things
+	// Note: http://doc.trolltech.com/4.6/functions.html
+	virtual SnapshotBase* createSnapshotBase() const = 0;
 
 protected:
         // It's true that the shared data pointer protects us across threads
@@ -188,6 +185,24 @@ public:
 
 	friend class Snapshottable< DataType >;
 
+	// Following QFuture/etc. convention of sharing inside the type
+	// As well as tolerating default construction
+	public:
+		Snapshot () :
+			d ()
+		{
+		}
+		Snapshot (const Snapshot& other) :
+			d (other.d)
+		{
+		}
+		Snapshot& operator= (const Snapshot & other)
+		{
+			if (this != &other) {
+				d = other.d;
+			}
+			return *this;
+		}
 	protected:
 		Snapshot (QSharedDataPointer< DataType > initialD) :
 			d (initialD)
@@ -197,13 +212,22 @@ public:
 	public:
 		const DataType* data() const
 		{
+			hopefully(d != QSharedDataPointer< DataType >(), HERE);
 			return d.data();
+		}
+		const DataType* operator-> () const
+		{
+			return data();
+		}
+		void clear()
+		{
+			d = QSharedDataPointer< DataType >();
 		}
 
 	protected:
 		/* virtual */ const SnapshottableData* dataBase() const
 		{
-			return dynamic_cast< const SnapshottableData* >(d.data());
+			return dynamic_cast< const SnapshottableData* >(data());
 		}
 
 	public:
@@ -262,17 +286,17 @@ public:
 	}
 
 public:
-	QSharedPointer< Snapshot > makeSnapshot() const
+	Snapshot createSnapshot() const
 	{
 		dLock.lockForRead();
-		QSharedPointer< Snapshot > result (new Snapshot (d));
+		Snapshot result (d);
 		dLock.unlock();
 		return result;
 	}
 
-	/* virtual */ QSharedPointer< SnapshotBase > makeSnapshotBase() const
+	/* virtual */  SnapshotBase* createSnapshotBase() const
 	{
-		return makeSnapshot();
+		return new Snapshot (createSnapshot());
 	}
 
 protected:
