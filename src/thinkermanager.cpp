@@ -50,7 +50,7 @@ void ThinkerManager::ensureThinkersPaused(const codeplace& cp)
 	QMapIterator< const ThinkerObject*, tracked< ThinkerThread* > > i (map);
 
 	// First pass: request all thinkers to pause (accept it if they are aborting, as they
-	// may be freed by the ThinkerRunner but not yet returned).
+	// may be freed by the ThinkerPresent but not yet returned).
 	while (i.hasNext()) {
 		i.next();
 		ThinkerThread* thread (i.value());
@@ -128,7 +128,6 @@ void ThinkerManager::ensureThinkerFinished(ThinkerObject& thinker)
 	if (thinker.state != ThinkerObject::Finished) {
 		ThinkerThread* thinkerThread (maybeGetThreadForThinker(thinker));
 		if (thinkerThread != NULL) {
-			thinkerThread->state.hopefullyNotEqualTo(ThinkerThread::Canceled, HERE);
 			hopefully(not thinkerThread->isCanceled(), HERE); // can't finish if it's aborted or invalid!
 
 			// make sure thread is resumed and finishes...
@@ -179,7 +178,7 @@ ThinkerManager::~ThinkerManager()
 {
 	hopefullyCurrentThreadIsManager(HERE);
 
-	// By this point, all the ThinkerRunners should be freed.
+	// By this point, all the ThinkerPresents should be freed.
 	// This means all remaining threads should be in the aborted state
 	// We wait for them to finish
 

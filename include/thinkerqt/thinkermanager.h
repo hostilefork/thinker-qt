@@ -26,7 +26,7 @@
 
 #include "defs.h"
 #include "thinker.h"
-#include "thinkerrunner.h"
+#include "thinkerpresent.h"
 
 class ThinkerThread;
 class ThinkerThreadHelper;

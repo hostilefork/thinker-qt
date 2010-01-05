@@ -27,7 +27,7 @@
 #include "defs.h"
 #include "snapshottable.h"
 #include "signalthrottler.h"
-#include "thinkerrunner.h"
+#include "thinkerpresent.h"
 
 class ThinkerManager;
 class ThinkerThread;

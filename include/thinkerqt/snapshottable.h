@@ -124,7 +124,7 @@ public:
 	SnapshottableBase ();
 
 public:
-	// makeSnapshotBase returns a pointer to an allocated object
+	// createSnapshotBase returns a pointer to an allocated object
 	// due to technical restrictions, but createSnapshot proper returns
 	// an implicitly shared type
 

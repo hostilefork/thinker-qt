@@ -20,7 +20,7 @@
 //
 
 #include "thinkerthread.h"
-#include "thinkerqt/thinkerrunner.h"
+#include "thinkerqt/thinkerpresent.h"
 #include "thinkerqt/thinkermanager.h"
 
 //
