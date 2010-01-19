@@ -44,18 +44,29 @@
 // any of your calls to emitThrottled with less than that number
 //
 
-class SignalThrottler : protected QTimer
+class SignalThrottler : public QObject
 {
 	Q_OBJECT
 
-private:
-	QTime lastEmit; // when was the last emit?  (null if never)
-	QTime nextEmit; // when is the next emit scheduled?  (null if none)
-	QAtomicInt millisecondsDefault;
-
 public:
 	SignalThrottler (unsigned int milliseconds = 0, QObject* parent = NULL);
+	~SignalThrottler ();
+
+public:
 	void setMillisecondsDefault(unsigned int milliseconds);
+	void emitThrottled(unsigned int milliseconds);
+
+	// Because we are dealing with a delay, it may be the case that
+	// we don't want the signal to happen.  Postpone clears any
+	// pending events and returns whether an event was pending
+	bool postpone();
+
+public slots:
+	// This function is the slot you call or connect an unthrottled signal
+	// to.  It sort of defeats the point a bit to connect an unthrottled
+	// signal here which happens frequently rather than call it as a
+	// function because you'll still pay for the event queue processing
+	void emitThrottled();
 
 signals:
 	void throttled();
@@ -63,34 +74,11 @@ signals:
 private slots:
 	void onTimeout();
 
-public slots:
-	// This function is the slot you call or connect an unthrottled signal
-	// to.  It sort of defeats the point a bit to connect an unthrottled
-	// signal here which happens frequently rather than call it as a
-	// function because you'll still pay for the event queue processing
-
-	void emitThrottled();
-
-public:
-	void emitThrottled(unsigned int milliseconds);
-
-	// Because we are dealing with a delay, it may be the case that
-	// we don't want the signal to happen.  Postpone clears any
-	// pending events and returns whether an event was pending
-
-	bool postpone();
-
-public:
-	// Workaround for the inability to use QObject::connect if you inherit
-	// private or protected from a QObject-derived type
-
-	QObject* getAsQObject()
-	{
-		return static_cast< QObject* >(this);
-	}
-
-public:
-	~SignalThrottler ();
+private:
+	QTime lastEmit; // when was the last emit?  (null if never)
+	QTime nextEmit; // when is the next emit scheduled?  (null if none)
+	QAtomicInt millisecondsDefault;
+	QTimer timer;
 };
 
 #endif

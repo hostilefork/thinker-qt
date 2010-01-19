@@ -39,9 +39,6 @@ ThinkerManager::ThinkerManager () :
 	QObject ()
 {
 	hopefullyCurrentThreadIsManager(HERE);
-
-	// request cancel of all the threads and wait on them...
-	connect(QCoreApplication::instance(), SIGNAL(aboutToQuit()), this, SLOT(onAboutToQuit()));
 }
 
 ThinkerManager *ThinkerManager::globalInstance()
@@ -186,28 +183,6 @@ void ThinkerManager::onRunnerFinished(ThinkerObject* thinker, bool canceled)
 	thinker->state = canceled ? ThinkerObject::ThinkerCanceled : ThinkerObject::ThinkerFinished;
 }
 
-void ThinkerManager::onAboutToQuit()
-{
-	bool anyRunners (false);
-
-	// This is not safe because we can't really iterate the collection on
-	// the manager thread.  In fact, I've got to do something about the race
-	// condition w/that, as Runners can just up-and-delete themselves at
-	// an arbitrary moment on their own thread.  The map needs to be
-	// protected by a mutex.
-	QMap< const ThinkerObject*, tracked< ThinkerRunner* > > map (runnerMapManager.getMap());
-	QMapIterator< const ThinkerObject*, tracked< ThinkerRunner* > > i (map);
-	while (i.hasNext()) {
-		i.next();
-		ThinkerRunner* runner (i.value());
-		hopefully(runner->isCanceled() or runner->isFinished(), HERE);
-		anyRunners = true;
-	}
-
-	if (anyRunners)
-		QThreadPool::globalInstance()->waitForDone();
-}
-
 void ThinkerManager::unlockThinker(ThinkerObject& thinker)
 {
 	// do throttled emit to all the ThinkerPresentWatchers
@@ -229,5 +204,22 @@ ThinkerManager::~ThinkerManager()
 
 	// We catch you with an assertion if you do not make sure all your
 	// Presents have been either canceled or completed
-	onAboutToQuit();
+	bool anyRunners (false);
+
+	// This is not safe because we can't really iterate the collection on
+	// the manager thread.  In fact, I've got to do something about the race
+	// condition w/that, as Runners can just up-and-delete themselves at
+	// an arbitrary moment on their own thread.  The map needs to be
+	// protected by a mutex.
+	QMap< const ThinkerObject*, tracked< ThinkerRunner* > > map (runnerMapManager.getMap());
+	QMapIterator< const ThinkerObject*, tracked< ThinkerRunner* > > i (map);
+	while (i.hasNext()) {
+		i.next();
+		ThinkerRunner* runner (i.value());
+		hopefully(runner->isCanceled() or runner->isFinished(), HERE);
+		anyRunners = true;
+	}
+
+	if (anyRunners)
+		QThreadPool::globalInstance()->waitForDone();
 }

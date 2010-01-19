@@ -165,10 +165,6 @@ public slots:
 	// http://stackoverflow.com/questions/1351217/qthreadwait-and-qthreadfinished
 	void onRunnerFinished(ThinkerObject* thinker, bool canceled);
 
-public slots:
-	// The application is about to quit, we cancel all threads if there are any...
-	void onAboutToQuit();
-
 public:
 	virtual ~ThinkerManager();
 };

@@ -22,11 +22,12 @@
 #include "thinkerqt/signalthrottler.h"
 
 SignalThrottler::SignalThrottler (unsigned int milliseconds, QObject* parent) :
-	QTimer (parent),
+	QObject (parent),
+	timer (),
 	millisecondsDefault (cast_hopefully<int>(milliseconds, HERE))
 {
-	setSingleShot(true);
-	connect(this, SIGNAL(timeout()), this, SLOT(onTimeout()));
+	timer.setSingleShot(true);
+	connect(&timer, SIGNAL(timeout()), this, SLOT(onTimeout()));
 }
 
 void SignalThrottler::setMillisecondsDefault(unsigned int milliseconds)
@@ -67,7 +68,7 @@ void SignalThrottler::emitThrottled(unsigned int milliseconds)
 	if (deltaMilliseconds < overheadMsec) {
 
 		if (not nextEmit.isNull()) {
-			QTimer::stop();
+			timer.stop();
 			nextEmit = QTime ();
 		}
 
@@ -76,15 +77,18 @@ void SignalThrottler::emitThrottled(unsigned int milliseconds)
 
 	} else if (nextEmit.isNull() or (nextEmit > worstCaseEmitTime)) {
 
-		QTimer::start(deltaMilliseconds);
+		timer.start(deltaMilliseconds);
 		nextEmit = worstCaseEmitTime;
 	}
 }
 
 bool SignalThrottler::postpone()
 {
+	// can't risk multiple threads trying to call this routine at the same time
+	hopefully(QThread::currentThread() == thread(), HERE);
+
 	if (not nextEmit.isNull()) {
-		QTimer::stop();
+		timer.stop();
 		nextEmit = QTime ();
 		return true;
 	}

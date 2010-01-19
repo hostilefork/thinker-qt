@@ -105,7 +105,7 @@ public:
 	int progressValue () const; */
 
 signals:
-	void updated();
+	void written();
 	void finished();
 
 public:

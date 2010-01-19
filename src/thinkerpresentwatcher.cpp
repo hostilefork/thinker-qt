@@ -36,7 +36,7 @@ ThinkerPresentWatcherBase::ThinkerPresentWatcherBase (ThinkerPresentBase present
 	milliseconds (200),
 	notificationThrottler (new SignalThrottler (milliseconds, &present.getThinkerBase()))
 {
-	connect(notificationThrottler->getAsQObject(), SIGNAL(throttled()), this, SIGNAL(updated()), Qt::DirectConnection);
+	connect(notificationThrottler, SIGNAL(throttled()), this, SIGNAL(written()), Qt::DirectConnection);
 }
 
 void ThinkerPresentWatcherBase::setPresentBase(ThinkerPresentBase present)
@@ -51,7 +51,7 @@ void ThinkerPresentWatcherBase::setPresentBase(ThinkerPresentBase present)
 		notificationThrottler = NULL;
 	} else {
 		notificationThrottler = new SignalThrottler (milliseconds, &present.getThinkerBase());
-		connect(notificationThrottler->getAsQObject(), SIGNAL(throttled()), this, SIGNAL(updated()), Qt::DirectConnection);
+		connect(notificationThrottler, SIGNAL(throttled()), this, SIGNAL(written()), Qt::DirectConnection);
 
 		// add to the new watch list.  note that we may have missed the "finished"
 		// signal so if it has finished, you will get an artificial "finished" re-broadcast
