@@ -19,7 +19,7 @@
 // See http://hostilefork.com/thinker-qt/ for more information on this project
 //
 
-#include "thinkerthread.h"
+#include "thinkerrunner.h"
 #include "thinkerqt/thinkerpresent.h"
 #include "thinkerqt/thinkermanager.h"
 
@@ -28,50 +28,50 @@
 //
 
 ThinkerPresentBase::ThinkerPresentBase () :
-	thinker ()
+	holder (NULL)
 {
 }
 
 ThinkerPresentBase::ThinkerPresentBase (const ThinkerPresentBase& other) :
-	thinker (other.thinker)
+	holder (other.holder)
 {
 }
 
-ThinkerPresentBase::ThinkerPresentBase (QSharedPointer< ThinkerObject > thinker) :
-	thinker (thinker)
+ThinkerPresentBase::ThinkerPresentBase (ThinkerHolder< ThinkerObject > holder) :
+	holder (holder)
 {
 }
 
 bool ThinkerPresentBase::operator!= (const ThinkerPresentBase& other) const
 {
-	return thinker != other.thinker;
+	return holder != other.holder;
 }
 
 bool ThinkerPresentBase::operator== (const ThinkerPresentBase& other) const
 {
-	return thinker == other.thinker;
+	return holder == other.holder;
 }
 
 ThinkerPresentBase& ThinkerPresentBase::operator= (const ThinkerPresentBase & other) {
 	if (this != &other) {
-		thinker = other.thinker;
+		holder = other.holder;
 	}
 	return *this;
 }
 
 bool ThinkerPresentBase::hopefullyCurrentThreadIsManager(const codeplace& cp) const
 {
-	return thinker->getManager().hopefullyCurrentThreadIsManager(cp);
+	return holder->getManager().hopefullyCurrentThreadIsManager(cp);
 }
 
 ThinkerObject& ThinkerPresentBase::getThinkerBase() {
 	hopefullyCurrentThreadIsManager(HERE);
-	return *thinker;
+	return *holder.data();
 }
 
 const ThinkerObject& ThinkerPresentBase::getThinkerBase() const {
 	hopefullyCurrentThreadIsManager(HERE);
-	return *thinker;
+	return *holder.data();
 }
 
 bool ThinkerPresentBase::isCanceled () const
@@ -102,18 +102,20 @@ void ThinkerPresentBase::cancel ()
 {
 	// See QFuture for precedent... you can call cancel() on a default constructed
 	// QFuture object and it's a no-op
-	if (thinker.isNull())
+	if (holder.isNull())
 		return;
+
+	ThinkerObject& thinker (getThinkerBase());
 
 	// We need to be able to map descriptors to thinkers, but the problem is that
 	// a thinker thread still running which we haven't been able to terminate yet
 	// may exist for a descriptor that we now have a *new* thinker for.  So we
 	// have to clean up any structures that treat this thinker as relevant when
 	// we might allocate a new one...
-	thinker->beforePresentDetach();
+	thinker.beforePresentDetach();
 
-	ThinkerThread* thinkerThread (thinker->getManager().maybeGetThreadForThinker(*thinker));
-	if (thinkerThread != NULL) {
+	ThinkerRunner* runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
+	if (runner != NULL) {
 		// No need to enforceCancel at this point (which would cause a
 		// synchronous pause of the worker thread that we'd like to avoid)
 		// ...although unruly thinkers may seem to "leak" if they stall too
@@ -121,7 +123,9 @@ void ThinkerPresentBase::cancel ()
 
 		// The bulkhead may have become invalidated which means it
 		// could already be aborted.
-		thinkerThread->requestCancelButAlreadyCanceledIsOkay(HERE);
+		runner->requestCancelButAlreadyCanceledIsOkay(HERE);
+	} else {
+		thinker.state = ThinkerObject::ThinkerCanceled;
 	}
 }
 
@@ -152,19 +156,23 @@ void ThinkerPresentBase::waitForFinished ()
 	// exception if the future had been paused...
 	hopefully(not isPaused(), HERE);
 
-	ThinkerThread* thinkerThread (thinker->getManager().maybeGetThreadForThinker(*thinker));
-	if (thinkerThread != NULL) {
-		if (thinkerThread->isCanceled())
-			thinkerThread->waitForCancel();
+	ThinkerObject& thinker (getThinkerBase());
+
+	ThinkerRunner* runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
+	if (runner != NULL) {
+		if (runner->isCanceled())
+			runner->waitForCancel();
 		else
-			thinkerThread->requestFinishAndWaitForFinish(HERE);
+			runner->requestFinishAndWaitForFinish(HERE);
 	}
 }
 
-SnapshotBase* ThinkerPresentBase::createSnapshotBase() const
+SnapshotPointerBase* ThinkerPresentBase::createSnapshotBase() const
 {
+	const ThinkerObject& thinker (getThinkerBase());
+
 	hopefullyCurrentThreadIsManager(HERE);
-	return static_cast< SnapshottableBase* >(thinker.data())->createSnapshotBase();
+	return static_cast< const SnapshottableBase* >(&thinker)->createSnapshotBase();
 }
 
 ThinkerPresentBase::~ThinkerPresentBase()

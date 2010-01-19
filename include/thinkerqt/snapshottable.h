@@ -86,7 +86,7 @@ public:
 // QSharedDataPointer to your concrete type--not base type.
 //
 
-class SnapshotBase
+class SnapshotPointerBase
 {
 private:
 	// (...there should be a member put here...)
@@ -130,7 +130,7 @@ public:
 
 	// TrollTech uses "create" when applied to factory-style things
 	// Note: http://doc.trolltech.com/4.6/functions.html
-	virtual SnapshotBase* createSnapshotBase() const = 0;
+	virtual SnapshotPointerBase* createSnapshotBase() const = 0;
 
 protected:
         // It's true that the shared data pointer protects us across threads
@@ -178,7 +178,7 @@ private:
 	QSharedDataPointer< DataType > d;
 
 public:
-	class Snapshot : public SnapshotBase
+	class SnapshotPointer : public SnapshotPointerBase
 	{
 	private:
 		QSharedDataPointer< DataType > d;
@@ -188,15 +188,15 @@ public:
 	// Following QFuture/etc. convention of sharing inside the type
 	// As well as tolerating default construction
 	public:
-		Snapshot () :
+		SnapshotPointer () :
 			d ()
 		{
 		}
-		Snapshot (const Snapshot& other) :
+		SnapshotPointer (const SnapshotPointer& other) :
 			d (other.d)
 		{
 		}
-		Snapshot& operator= (const Snapshot & other)
+		SnapshotPointer& operator= (const SnapshotPointer & other)
 		{
 			if (this != &other) {
 				d = other.d;
@@ -204,7 +204,7 @@ public:
 			return *this;
 		}
 	protected:
-		Snapshot (QSharedDataPointer< DataType > initialD) :
+		SnapshotPointer (QSharedDataPointer< DataType > initialD) :
 			d (initialD)
 		{
 		}
@@ -231,7 +231,7 @@ public:
 		}
 
 	public:
-		~Snapshot()
+		~SnapshotPointer ()
 		{
 		}
 	};
@@ -286,17 +286,17 @@ public:
 	}
 
 public:
-	Snapshot createSnapshot() const
+	SnapshotPointer createSnapshot() const
 	{
 		dLock.lockForRead();
-		Snapshot result (d);
+		SnapshotPointer result (d);
 		dLock.unlock();
 		return result;
 	}
 
-	/* virtual */  SnapshotBase* createSnapshotBase() const
+	/* virtual */  SnapshotPointerBase* createSnapshotBase() const
 	{
-		return new Snapshot (createSnapshot());
+		return new SnapshotPointer (createSnapshot());
 	}
 
 protected:

@@ -25,9 +25,56 @@
 #include <QThread>
 
 #include "defs.h"
+#include "snapshottable.h"
 
 class ThinkerObject;
 class ThinkerManager;
+
+// ThinkerHolder
+//
+// We only want to run the destructor of the Thinker on the thread where
+// it was created.  But if we use QSharedPointer to a Thinker then that means
+// we are surrendering the control of which thread will actually be the
+// one to perform the deletion (it will happen on which ever thread happens
+// to be the last one to release a reference).
+//
+// This uses a custom deleter to ensure that we call QObject::deleteLater
+// http://doc.trolltech.com/4.5/qsharedpointer.html#QSharedPointer-3
+
+template< class ThinkerType >
+class ThinkerHolder : public QSharedPointer< ThinkerType > {
+private:
+	// Deleters are tough to do as friends because one needs to generally friend
+	// functions or classes within the smart pointer implementation.
+	static void doDeleteLater(ThinkerType* thinker)
+	{
+		if (thinker->thread() == QThread::currentThread())
+			delete thinker;
+		else
+			thinker->deleteLater();
+	}
+public:
+	ThinkerHolder (ThinkerType* thinker) :
+		QSharedPointer< ThinkerType > (thinker, doDeleteLater)
+	{
+	}
+	ThinkerHolder() :
+		QSharedPointer< ThinkerType > ()
+	{
+	}
+	template< class T > ThinkerHolder(const ThinkerHolder< T > other) :
+		QSharedPointer< ThinkerType >(other)
+	{
+	}
+	ThinkerObject& getThinkerBase()
+	{
+		return *cast_hopefully< ThinkerObject* >(this->data(), HERE);
+	}
+	ThinkerType& getThinker()
+	{
+		return *this->data();
+	}
+};
 
 //
 // ThinkerPresent
@@ -46,7 +93,7 @@ class ThinkerManager;
 class ThinkerPresentBase
 {
 protected:
-	QSharedPointer< ThinkerObject > thinker;
+	ThinkerHolder< ThinkerObject > holder;
 
 public:
 	// Following pattern set up by QtConcurrent's QFuture
@@ -56,7 +103,7 @@ public:
 	ThinkerPresentBase (const ThinkerPresentBase& other);
 	ThinkerPresentBase& operator= (const ThinkerPresentBase & other);
 protected:
-	ThinkerPresentBase (QSharedPointer< ThinkerObject > thinker);
+	ThinkerPresentBase (ThinkerHolder< ThinkerObject > holder);
 	friend class ThinkerManager;
 
 public:
@@ -65,6 +112,7 @@ public:
 
 protected:
 	bool hopefullyCurrentThreadIsManager(const codeplace& cp) const;
+	friend class ThinkerPresentWatcherBase;
 
 protected:
 	// Is this a good idea to export in the API?
@@ -76,7 +124,7 @@ public:
 	/* T result () const;
 	operator T () const; */
 
-	SnapshotBase* createSnapshotBase() const;
+	SnapshotPointerBase* createSnapshotBase() const;
 
 	/* T resultAt ( int index ) const;
 	int resultCount () const;

@@ -21,7 +21,7 @@
 
 #include "thinkerqt/thinker.h"
 #include "thinkerqt/thinkermanager.h"
-#include "thinkerthread.h"
+#include "thinkerrunner.h"
 
 //
 // Thinker
@@ -29,14 +29,18 @@
 
 ThinkerObject::ThinkerObject (ThinkerManager& mgr) :
 	QObject (),
-	state (Thinking),
-	mgr (mgr),
-	wasAttachedToPresent (false),
-	notificationThrottler (new SignalThrottler (200, this)) // is 200 milliseconds a good default?
+	state (ThinkerThinking),
+	mgr (mgr)
 {
 	getManager().hopefullyCurrentThreadIsManager(HERE);
+}
 
-	connect(notificationThrottler->getAsQObject(), SIGNAL(throttled()), this, SIGNAL(madeProgress()), Qt::DirectConnection);
+ThinkerObject::ThinkerObject () :
+	QObject (),
+	state (ThinkerThinking),
+	mgr (*ThinkerManager::globalInstance())
+{
+	getManager().hopefullyCurrentThreadIsManager(HERE);
 }
 
 ThinkerManager& ThinkerObject::getManager() const
@@ -46,10 +50,6 @@ ThinkerManager& ThinkerObject::getManager() const
 
 void ThinkerObject::beforePresentDetach()
 {
-	// TODO: any cleaner if we stop emitting the signal instead of disconnecting
-	// from all those listening for it?  Or should we throw up an error if someone
-	// tries to call the progress connectors after this point?
-	disconnect(this, SIGNAL(madeProgress()), 0, 0);
 }
 
 void ThinkerObject::afterThreadAttach()
@@ -62,77 +62,52 @@ void ThinkerObject::beforeThreadDetach()
 
 void ThinkerObject::lockForWrite(const codeplace& cp)
 {
-	if (wasAttachedToPresent) {
-		getManager().hopefullyCurrentThreadIsThinker(HERE);
-	} else {
-		// we currently allow locking a thinker for writing
-		// on the manager thread between the time the
-		// Snapshot base class constructor has run
-		// and when it is attached to a ThinkerPresent
-		getManager().hopefullyCurrentThreadIsManager(HERE);
-	}
+	// we currently allow locking a thinker for writing
+	// on the manager thread between the time the
+	// Snapshot base class constructor has run
+	// and when it is attached to a ThinkerPresent
+	hopefully(thread() == QThread::currentThread(), HERE);
+
 	SnapshottableBase::lockForWrite(cp);
 }
 
 void ThinkerObject::unlock(const codeplace& cp)
 {
-	if (wasAttachedToPresent) {
-		getManager().hopefullyCurrentThreadIsThinker(HERE);
-		notificationThrottler->emitThrottled();
-	} else {
-		// we do not emit a progress signal if we're in
-		// the time between base class running and
-		// being attached to a ThinkerPresent.  In fact,
-		// makeSnapshot should also be disabled
-		// during this time.  Perhaps inherit privately
-		// and then attach the snapshot function
-		// to the ThinkerPresent?
-		getManager().hopefullyCurrentThreadIsManager(HERE);
-	}
+	// we currently allow locking a thinker for writing
+	// on the manager thread between the time the
+	// Snapshot base class constructor has run
+	// and when it is attached to a ThinkerPresent
+	hopefully(thread() == QThread::currentThread(), HERE);
+
+	getManager().unlockThinker(*this);
 
 	SnapshottableBase::unlock(cp);
 }
 
-bool ThinkerObject::connectProgressTo(const QObject * receiver, const char * member)
+bool ThinkerObject::wasPauseRequested(unsigned long time) const
 {
-	return connect(this, SIGNAL(madeProgress()), receiver, member);
-}
-
-bool ThinkerObject::disconnectProgressFrom(const QObject * receiver, const char * member)
-{
-	return disconnect(this, SIGNAL(madeProgress()), receiver, member);
-}
-
-bool ThinkerObject::isPauseRequested(unsigned long time) const
-{
-	ThinkerThread* thinkerThread (getManager().maybeGetThreadForThinker(*this));
-	hopefully(thinkerThread == QThread::currentThread(), HERE);
-	return thinkerThread->isPauseRequested(time);
+	ThinkerRunner* runner (getManager().maybeGetRunnerForThinker(*this));
+	runner->hopefullyCurrentThreadIsPooled(HERE);
+	return runner->wasPauseRequested(time);
 }
 
 #ifndef Q_NO_EXCEPTIONS
 void ThinkerObject::pollForStopException(unsigned long time) const
 {
-	ThinkerThread* thinkerThread (getManager().maybeGetThreadForThinker(*this));
-	hopefully(thinkerThread == QThread::currentThread(), HERE);
-	thinkerThread->pollForStopException(time);
+	ThinkerRunner* runner (getManager().maybeGetRunnerForThinker(*this));
+	runner->hopefullyCurrentThreadIsPooled(HERE);
+	runner->pollForStopException(time);
 }
 #endif
 
-void ThinkerObject::onStartThinking()
+void ThinkerObject::onResumeThinking()
 {
 	getManager().hopefullyCurrentThreadIsThinker(HERE);
-	startThinking();
-}
-
-void ThinkerObject::onContinueThinking()
-{
-	getManager().hopefullyCurrentThreadIsThinker(HERE);
-	continueThinking();
+	resume();
 }
 
 ThinkerObject::~ThinkerObject ()
 {
 	getManager().hopefullyCurrentThreadIsManager(HERE);
-	hopefully(getManager().maybeGetThreadForThinker(*this) == NULL, HERE);
+	hopefully(getManager().maybeGetRunnerForThinker(*this) == NULL, HERE);
 }

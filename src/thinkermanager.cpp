@@ -19,8 +19,17 @@
 // See http://hostilefork.com/thinker-qt/ for more information on this project
 //
 
-#include "thinkerthread.h"
+#include <QThreadPool>
+
+#include "thinkerrunner.h"
 #include "thinkerqt/thinkermanager.h"
+
+//
+// Q_GLOBAL_STATIC is an Internal Qt Macro, not part of the public API
+// You can use it... but it may change without notice in future versions
+//
+
+Q_GLOBAL_STATIC(ThinkerManager, theInstance)
 
 //
 // ThinkerManager
@@ -30,31 +39,52 @@ ThinkerManager::ThinkerManager () :
 	QObject ()
 {
 	hopefullyCurrentThreadIsManager(HERE);
+
+	// request cancel of all the threads and wait on them...
+	connect(QCoreApplication::instance(), SIGNAL(aboutToQuit()), this, SLOT(onAboutToQuit()));
 }
 
-void ThinkerManager::createThreadForThinker(QSharedPointer< ThinkerObject > thinker)
+ThinkerManager *ThinkerManager::globalInstance()
 {
+	return theInstance();
+}
+
+void ThinkerManager::createRunnerForThinker(ThinkerHolder< ThinkerObject > holder, const codeplace& cp)
+{
+	hopefullyCurrentThreadIsManager(cp);
+	hopefully(not holder.isNull(), cp);
+
+	ThinkerRunner* runner (new ThinkerRunner (holder));
+
 	// this may look like a bad idea because we are dynamically allocating and not hanging onto
-	// the result so we can free it.  but it's okay because ThinkerThreads maintain a global table
+	// the result so we can free it.  but it's okay because ThinkerRunners maintain a global table
 	// which they insert themselves into on construction and delete themselves from during
 	// destruction.  Also, when the thread emits the finished signal, we clean it up using deleteLater
 	// (it is freed by the event loop when all events have been processed)
-	static_cast< void* >(new ThinkerThread (thinker));
+	runner->setAutoDelete(true);
+
+	// QtConcurrent defines one global thread pool instance but maybe I'll let you specify your
+	// own, not sure if that's useful.  They make a lot of global assumptions, perhaps I should
+	// just piggy back on them.
+
+	// Queue this runnable thing to the thread pool.  It may take a while before
+	// a thread gets allocated to it.
+	QThreadPool::globalInstance()->start(runner);
 }
 
 void ThinkerManager::ensureThinkersPaused(const codeplace& cp)
 {
 	hopefullyCurrentThreadIsManager(HERE);
 
-	QMap< const ThinkerObject*, tracked< ThinkerThread* > > map (threadMapManager.getMap());
-	QMapIterator< const ThinkerObject*, tracked< ThinkerThread* > > i (map);
+	QMap< const ThinkerObject*, tracked< ThinkerRunner* > > map (runnerMapManager.getMap());
+	QMapIterator< const ThinkerObject*, tracked< ThinkerRunner* > > i (map);
 
 	// First pass: request all thinkers to pause (accept it if they are aborting, as they
 	// may be freed by the ThinkerPresent but not yet returned).
 	while (i.hasNext()) {
 		i.next();
-		ThinkerThread* thread (i.value());
-		thread->requestPauseButCanceledIsOkay(cp);
+		ThinkerRunner* runner (i.value());
+		runner->requestPauseButCanceledIsOkay(cp);
 	}
 
 	i.toFront();
@@ -62,8 +92,8 @@ void ThinkerManager::ensureThinkersPaused(const codeplace& cp)
 	// Second pass: wait for all the thinkers to actually get their code off the stack.
 	while (i.hasNext()) {
 		i.next();
-		ThinkerThread* thread (i.value());
-		thread->waitForPauseButCanceledIsOkay();
+		ThinkerRunner* runner (i.value());
+		runner->waitForPauseButCanceledIsOkay();
 	}
 }
 
@@ -72,121 +102,132 @@ void ThinkerManager::ensureThinkersResumed(const codeplace& cp)
 	hopefullyCurrentThreadIsManager(HERE);
 
 	// any thinkers that have not been aborted can be resumed
-	QMap< const ThinkerObject*, tracked< ThinkerThread* > > map (threadMapManager.getMap());
-	QMapIterator< const ThinkerObject*, tracked< ThinkerThread* > > i (map);
+	QMap< const ThinkerObject*, tracked< ThinkerRunner* > > map (runnerMapManager.getMap());
+	QMapIterator< const ThinkerObject*, tracked< ThinkerRunner* > > i (map);
 	while (i.hasNext()) {
 		i.next();
-		ThinkerThread* thread (i.value());
-		thread->requestResumeButCanceledIsOkay(cp);
+		ThinkerRunner* runner (i.value());
+		runner->requestResumeButCanceledIsOkay(cp);
 	}
 }
 
-const ThinkerThread* ThinkerManager::maybeCastToThinkerThread(const QThread* thread)
+const ThinkerRunner* ThinkerManager::maybeGetRunnerForThread(const QThread* thread)
 {
 	hopefully(thread != NULL, HERE);
-	const ThinkerThread* result (dynamic_cast< const ThinkerThread* >(thread));
+	// TODO: Look into race condition here
+	const ThinkerRunner* result (threadMapManager.lookupValue(thread, NULL));
 	return result;
 }
 
-ThinkerThread* ThinkerManager::maybeGetThreadForThinker(const ThinkerObject& thinker)
+ThinkerRunner* ThinkerManager::maybeGetRunnerForThinker(const ThinkerObject& thinker)
 {
-	QMap< const ThinkerObject*, tracked< ThinkerThread* > > map (threadMapManager.getMap());
-	QMap< const ThinkerObject*, tracked< ThinkerThread* > >::iterator i (map.find(&thinker));
+	QMap< const ThinkerObject*, tracked< ThinkerRunner* > > map (runnerMapManager.getMap());
+	QMap< const ThinkerObject*, tracked< ThinkerRunner* > >::iterator i (map.find(&thinker));
 	if (i != map.end())
 		return i.value();
 	return NULL;
 }
 
-ThinkerObject& ThinkerManager::getThinkerForThread(const ThinkerThread* thinkerThread)
+ThinkerObject& ThinkerManager::getThinkerForRunner(const ThinkerRunner* runner)
 {
-	hopefully(thinkerThread != NULL, HERE);
+	hopefully(runner != NULL, HERE);
 	// not the most evil const_cast ever written, as we are the "thinker manager"
-	// better to keep non-const ThinkerThread handles out of client code
-	return const_cast< ThinkerThread* >(thinkerThread)->getThinker();
+	// better to keep non-const ThinkerRunner handles out of client code
+	return const_cast< ThinkerRunner* >(runner)->getThinker();
 }
 
 void ThinkerManager::requestAndWaitForCancelButAlreadyCanceledIsOkay(ThinkerObject& thinker)
 {
-	ThinkerThread* thinkerThread (maybeGetThreadForThinker(thinker));
-	if(thinkerThread == NULL) {
-		thinker.state = ThinkerObject::Canceled;
+	ThinkerRunner* thinkerRunner (maybeGetRunnerForThinker(thinker));
+	if(thinkerRunner == NULL) {
+		thinker.state = ThinkerObject::ThinkerCanceled;
 	} else {
 		// thread should be paused or finished... or possibly aborted
-		thinkerThread->requestCancelButAlreadyCanceledIsOkay(HERE);
-		thinkerThread->waitForCancel();
+		thinkerRunner->requestCancelButAlreadyCanceledIsOkay(HERE);
+		thinkerRunner->waitForCancel();
 		// manager's responsibility to update the thinker's state, not directly sync'd to
 		// thread state (only when thread is terminated).
-		thinker.state = ThinkerObject::Canceled;
+		thinker.state = ThinkerObject::ThinkerCanceled;
 	}
-	hopefully(thinker.state == ThinkerObject::Canceled, HERE);
+	hopefully(thinker.state == ThinkerObject::ThinkerCanceled, HERE);
 }
 
 void ThinkerManager::ensureThinkerFinished(ThinkerObject& thinker)
 {
 	hopefullyCurrentThreadIsManager(HERE);
 
-	if (thinker.state != ThinkerObject::Finished) {
-		ThinkerThread* thinkerThread (maybeGetThreadForThinker(thinker));
-		if (thinkerThread != NULL) {
-			hopefully(not thinkerThread->isCanceled(), HERE); // can't finish if it's aborted or invalid!
-
-			// make sure thread is resumed and finishes...
-			bool threadComplete (thinkerThread->isComplete());
+	if (thinker.state != ThinkerObject::ThinkerFinished) {
+		ThinkerRunner* thinkerRunner (maybeGetRunnerForThinker(thinker));
+		if (thinkerRunner != NULL) {
+			hopefully(not thinkerRunner->isCanceled(), HERE); // can't finish if it's aborted or invalid!
 
 			// we need to watch the state changes and ensure that
 			// it completes... note user cancellation would mean that it
 			// would not so we have to allow for that case!
-			thinkerThread->requestResume(HERE);
-			thinkerThread->waitForResume(HERE);
-			thinkerThread->requestFinishAndWaitForFinish(HERE);
+			thinkerRunner->requestResume(HERE);
+			thinkerRunner->waitForResume(HERE);
+			thinkerRunner->requestFinishAndWaitForFinish(HERE);
 		}
 	}
 
-	hopefully(thinker.state != ThinkerObject::Canceled, HERE); // can't finish if it's aborted or invalid!
+	hopefully(thinker.state != ThinkerObject::ThinkerCanceled, HERE); // can't finish if it's aborted or invalid!
 
 	if (false) {
 		// It would be nice if this completion signal could be true by the time we reach here
 		// unfortunately this is not set until the message loop runs... hmmm.
 
-		hopefully(thinker.state == ThinkerObject::Finished, HERE);
+		hopefully(thinker.state == ThinkerObject::ThinkerFinished, HERE);
 	}
 }
 
-void ThinkerManager::throttleNotificationFrequency(ThinkerObject& thinker, unsigned int milliseconds)
-{
-	thinker.notificationThrottler->setMillisecondsDefault(milliseconds);
-}
-
-void ThinkerManager::onThreadFinished()
+void ThinkerManager::onRunnerFinished(ThinkerObject* thinker, bool canceled)
 {
 	hopefullyCurrentThreadIsManager(HERE);
-	hopefully(sender() != NULL, HERE);
-	ThinkerThread& thread (*cast_hopefully< ThinkerThread* >(sender(), HERE));
-	ThinkerObject& thinker (thread.getThinker());
+	thinker->state = canceled ? ThinkerObject::ThinkerCanceled : ThinkerObject::ThinkerFinished;
+}
 
-	if (thread.isCanceled()) {
-		thinker.state = ThinkerObject::Canceled;
-	} else if (thread.isComplete()) {
-		thinker.state = ThinkerObject::Finished;
-	} else {
-		hopefullyNotReached(HERE);
+void ThinkerManager::onAboutToQuit()
+{
+	bool anyRunners (false);
+
+	// This is not safe because we can't really iterate the collection on
+	// the manager thread.  In fact, I've got to do something about the race
+	// condition w/that, as Runners can just up-and-delete themselves at
+	// an arbitrary moment on their own thread.  The map needs to be
+	// protected by a mutex.
+	QMap< const ThinkerObject*, tracked< ThinkerRunner* > > map (runnerMapManager.getMap());
+	QMapIterator< const ThinkerObject*, tracked< ThinkerRunner* > > i (map);
+	while (i.hasNext()) {
+		i.next();
+		ThinkerRunner* runner (i.value());
+		hopefully(runner->isCanceled() or runner->isFinished(), HERE);
+		anyRunners = true;
 	}
-	thread.deleteLater();
+
+	if (anyRunners)
+		QThreadPool::globalInstance()->waitForDone();
+}
+
+void ThinkerManager::unlockThinker(ThinkerObject& thinker)
+{
+	// do throttled emit to all the ThinkerPresentWatchers
+	thinker.watchersLock.lockForRead();
+	QSetIterator<ThinkerPresentWatcherBase*> i (thinker.watchers);
+	while (i.hasNext()) {
+		i.next()->notificationThrottler->emitThrottled();
+	}
+	thinker.watchersLock.unlock();
+
+	// there is a notification throttler for all thinkers.  Review: should it be
+	// possible to have a separate notification for groups?
+	/* notificationThrottler->emitThrottled(); */
 }
 
 ThinkerManager::~ThinkerManager()
 {
 	hopefullyCurrentThreadIsManager(HERE);
 
-	// By this point, all the ThinkerPresents should be freed.
-	// This means all remaining threads should be in the aborted state
-	// We wait for them to finish
-
-	QMap< const ThinkerObject*, tracked< ThinkerThread* > > map (threadMapManager.getMap());
-	QMapIterator< const ThinkerObject*, tracked< ThinkerThread* > > i (map);
-	while (i.hasNext()) {
-		i.next();
-		ThinkerThread* thread (i.value());
-		thread->waitForCancel();
-	}
+	// We catch you with an assertion if you do not make sure all your
+	// Presents have been either canceled or completed
+	onAboutToQuit();
 }

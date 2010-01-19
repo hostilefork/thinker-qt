@@ -28,8 +28,8 @@
 #include "thinker.h"
 #include "thinkerpresent.h"
 
-class ThinkerThread;
-class ThinkerThreadHelper;
+class ThinkerRunner;
+class ThinkerRunnerHelper;
 
 //
 // ThinkerManager
@@ -45,12 +45,15 @@ class ThinkerManager : public QObject {
 	Q_OBJECT
 
 friend class ThinkerObject;
-friend class ThinkerThread;
-friend class ThinkerThreadHelper;
+friend class ThinkerRunner;
+friend class ThinkerRunnerHelper;
 friend class ThinkerPresentBase;
 
 public:
 	ThinkerManager ();
+
+public:
+	static ThinkerManager* globalInstance();
 
 private:
 	bool hopefullyThreadIsManager(const QThread* thread, const codeplace& cp)
@@ -63,15 +66,15 @@ private:
 	}
 	bool hopefullyThreadIsThinker(const QThread* thread, const codeplace& cp)
 	{
-		return hopefully(maybeCastToThinkerThread(thread) != NULL, cp);
+		return hopefully(maybeGetRunnerForThread(thread) != NULL, cp);
 	}
 	bool hopefullyCurrentThreadIsThinker(const codeplace& cp)
 	{
 		return hopefullyThreadIsThinker(QThread::currentThread(), cp);
 	}
 
-	// Thinkers are like "tasks".  There is not necessarily a one-to-one
-	// correspondence between Thinkers and threads.  So you must be
+	// Runners are like "tasks".  There is not necessarily a one-to-one
+	// correspondence between Runners and threads.  So you must be
 	// careful not to assume that you can get a thread for a thinker.
 	//
 	// But somewhat tautologically, it is true that *if* thinker code is
@@ -79,44 +82,40 @@ private:
 	// have a QThread which passes the cast to a ThinkerObject thread...
 	// then you may get the associated Thinker.
 private:
-	mapped< const ThinkerObject*, ThinkerThread* >::manager threadMapManager;
-	mapped< const ThinkerObject*, ThinkerThread* >::manager& getThreadMapManager()
+	mapped< const QThread*, ThinkerRunner* >::manager threadMapManager;
+	mapped< const QThread*, ThinkerRunner* >::manager& getThreadMapManager()
 	{
 		return threadMapManager;
 	}
-	ThinkerThread* maybeGetThreadForThinker(const ThinkerObject& thinker);
+private:
+	mapped< const ThinkerObject*, ThinkerRunner* >::manager runnerMapManager;
+	mapped< const ThinkerObject*, ThinkerRunner* >::manager& getRunnerMapManager()
+	{
+		return runnerMapManager;
+	}
+	ThinkerRunner* maybeGetRunnerForThinker(const ThinkerObject& thinker);
 public:
-	const ThinkerThread* maybeCastToThinkerThread(const QThread* thread);
-	ThinkerObject& getThinkerForThread(const ThinkerThread* thread);
+	const ThinkerRunner* maybeGetRunnerForThread(const QThread* thread);
+	ThinkerObject& getThinkerForRunner(const ThinkerRunner* runner);
 
 signals:
-	void madeProgress();
+	void anyThinkerUpdated();
+protected:
+	void unlockThinker(ThinkerObject& thinker);
 
 private:
-	void createThreadForThinker(QSharedPointer< ThinkerObject > thinker);
+	void createRunnerForThinker(ThinkerHolder< ThinkerObject > holder, const codeplace& cp);
 
 public:
 	template<class ThinkerType>
-	typename ThinkerType::Present run(QSharedPointer< ThinkerType > thinker, const codeplace& cp) {
-		hopefullyCurrentThreadIsManager(cp);
-		hopefully(not thinker.isNull(), cp);
-		hopefully(not thinker->wasAttachedToPresent, cp);
-		thinker->wasAttachedToPresent = true;
-
-		createThreadForThinker(thinker);
-
-		return typename ThinkerType::Present (thinker);
+	typename ThinkerType::Present run(ThinkerHolder< ThinkerType > holder, const codeplace& cp) {
+		createRunnerForThinker(holder, cp);
+		return typename ThinkerType::Present (holder);
 	}
 
-	ThinkerPresentBase runBase(QSharedPointer< ThinkerObject > thinker, const codeplace& cp) {
-		hopefullyCurrentThreadIsManager(cp);
-		hopefully(not thinker.isNull(), cp);
-		hopefully(not thinker->wasAttachedToPresent, cp);
-		thinker->wasAttachedToPresent = true;
-
-		createThreadForThinker(thinker);
-
-		return ThinkerPresentBase (thinker);
+	template< class ThinkerType > ThinkerPresentBase runBase(ThinkerHolder< ThinkerType > holder, const codeplace& cp) {
+		createRunnerForThinker(holder, cp);
+		return ThinkerPresentBase (holder);
 	}
 
 	// If you pass in a raw pointer instead of a shared pointer, the manager will take
@@ -125,7 +124,7 @@ public:
 	typename ThinkerType::Present run(ThinkerType* thinker, const codeplace& cp) {
 		hopefully(thinker != NULL, cp);
 		hopefully(thinker->parent() == NULL, cp);
-		return run(QSharedPointer< ThinkerType >(thinker));
+		return run(ThinkerHolder< ThinkerType >(thinker), cp);
 	}
 
 	void ensureThinkersPaused(const codeplace& cp);
@@ -137,15 +136,15 @@ public:
 	// documentation http://hostilefork.com/hoist/
 
 	template<class ThinkerType>
-	typename ThinkerType::Present run(QSharedPointer< ThinkerType > thinker) {
-		return run(thinker, HERE);
+	typename ThinkerType::Present run(ThinkerHolder< ThinkerType > holder) {
+		return run(holder, HERE);
 	}
 	template<class ThinkerType>
 	typename ThinkerType::Present run(ThinkerType* thinker) {
 		return run(thinker, HERE);
 	}
-	ThinkerPresentBase runBase(QSharedPointer< ThinkerObject > thinker) {
-		return runBase(thinker, HERE);
+	ThinkerPresentBase runBase(ThinkerHolder< ThinkerObject > holder) {
+		return runBase(holder, HERE);
 	}
 	void ensureThinkersPaused()
 	{
@@ -161,12 +160,14 @@ public:
 
 	void ensureThinkerFinished(ThinkerObject& thinker);
 
-	void throttleNotificationFrequency(ThinkerObject& thinker, unsigned int milliseconds);
-
 public slots:
 	// TODO: review implications of
 	// http://stackoverflow.com/questions/1351217/qthreadwait-and-qthreadfinished
-	void onThreadFinished();
+	void onRunnerFinished(ThinkerObject* thinker, bool canceled);
+
+public slots:
+	// The application is about to quit, we cancel all threads if there are any...
+	void onAboutToQuit();
 
 public:
 	virtual ~ThinkerManager();

@@ -23,14 +23,18 @@
 #define THINKERQT__THINKER_H
 
 #include <QObject>
+#include <QSet>
+#include <QReadWriteLock>
 
 #include "defs.h"
 #include "snapshottable.h"
 #include "signalthrottler.h"
 #include "thinkerpresent.h"
+#include "thinkerpresentwatcher.h"
 
 class ThinkerManager;
-class ThinkerThread;
+class ThinkerRunner;
+class ThinkerPresentWatcherBase;
 
 //
 // ThinkerObject
@@ -48,13 +52,16 @@ class ThinkerThread;
 //
 
 class ThinkerObject : protected QObject, virtual public SnapshottableBase {
+	// To help eliminate the misunderstanding of introducing control signals designed to
+	// change a thinker from the simple forward path of start=>pause=>continue/stop,
+	// it does not publicly inherit from QObject.
 	Q_OBJECT
 
 private:
 	enum State {
-		Thinking,
-		Finished,
-		Canceled
+		ThinkerThinking,
+		ThinkerFinished,
+		ThinkerCanceled
 	};
 
 private:
@@ -63,19 +70,21 @@ private:
 
 	State state;
 	ThinkerManager& mgr;
-	bool wasAttachedToPresent;
-	SignalThrottler* notificationThrottler;
+	QReadWriteLock watchersLock;
+	QSet<ThinkerPresentWatcherBase*> watchers;
 
 friend class ThinkerManager;
+friend class ThinkerPresentWatcherBase;
 
 public:
 	ThinkerObject (ThinkerManager& mgr);
+	ThinkerObject ();
 
 public:
 	ThinkerManager& getManager() const;
 
 public:
-	bool isPauseRequested(unsigned long time = 0) const;
+	bool wasPauseRequested(unsigned long time = 0) const;
 
 // If exceptions are enabled, you can use this and it will throw an exception to the
 // internal thread loop boilerplate on a pause request; only appropriate for
@@ -85,11 +94,11 @@ public:
 #endif
 
 protected:
-	// When a runner is detached from a thinker, then that is the cue
+	// When a present is detached from a thinker, then that is the cue
 	// that it will be stopped and destroyed.  However, since the thread
 	// is in the middle of processing the Thinker destructor will not
 	// immediately run.  This hook lets you do some bookkeeping
-	// when the runner goes away.
+	// when the present goes away.
 
 	virtual void beforePresentDetach();
 
@@ -99,17 +108,8 @@ public:
 	virtual void afterThreadAttach();
 	virtual void beforeThreadDetach();
 
-friend class ThinkerThread;
-
-signals:
-	void madeProgress();
-public:
-	// To help eliminate the misunderstanding of introducing control signals designed to
-	// change a thinker from the simple forward path of start=>pause=>continue/stop,
-	// it does not directly expose itself as a QObject.  But you do have to connect
-	// and disconnect progress signals from it.  This narrower API is for that.
-	bool connectProgressTo(const QObject * receiver, const char * member);
-	bool disconnectProgressFrom(const QObject * receiver, const char * member = 0);
+friend class ThinkerRunner;
+template< class ThinkerType > friend class ThinkerHolder;
 
 protected:
 	// These overrides provide added checking and also signal
@@ -136,25 +136,24 @@ signals:
 	// from the thinking function even though a pause was not requested
 	// because it intends to process the event loop?  It is somewhat error
 	// prone to allow a return from a non-paused thinker without enforcing
-	// a finishedThinking() signal, but essential to allow for the
+	// a done() signal, but essential to allow for the
 	// thinking to involve signal/slot processing.
 
-	void thinkingFinished();
+	void done();
 
 private slots:
-	void onStartThinking();
-	void onContinueThinking();
+	void onResumeThinking();
 
 protected:
-	virtual void startThinking() = 0;
-	virtual void continueThinking()
+	virtual void start() = 0;
+	virtual void resume()
 	{
 		// Making a restartable thinker typically involves extra work to
 		// make it into a coroutine.  You don't have to do that work if
 		// you don't intend on pausing and restarting thinkers.  In that
 		// case, isPauseRequested really just means isStopRequested...
 
-		hopefullyNotReached("This Thinker was not designed to be restartable.", HERE);
+		hopefullyNotReached("This Thinker was not designed to be resumable.", HERE);
 	}
 
 public:
@@ -186,7 +185,7 @@ class Thinker : public ThinkerObject, virtual private Snapshottable< DataTypePar
 {
 public:
 	typedef DataTypeParam DataType;
-	typedef typename Snapshottable< DataType >::Snapshot Snapshot;
+	typedef typename Snapshottable< DataType >::SnapshotPointer SnapshotPointer;
 
 public:
 	class Present : public ThinkerPresentBase
@@ -196,22 +195,27 @@ public:
 			ThinkerPresentBase ()
 		{
 		}
+		Present (ThinkerPresentBase& base) :
+			ThinkerPresentBase (base)
+		{
+			static_cast<void>(cast_hopefully< Present* >(&base, HERE));
+		}
 		Present (const Present& other) :
 			ThinkerPresentBase (other)
 		{
 		}
 	protected:
-		Present (QSharedPointer< ThinkerObject > thinker) :
-			ThinkerPresentBase (thinker)
+		Present (ThinkerHolder< ThinkerObject > holder) :
+			ThinkerPresentBase (holder)
 		{
 		}
 		friend class ThinkerManager;
 	public:
-		typename Thinker::Snapshot createSnapshot() const
+		typename Thinker::SnapshotPointer createSnapshot() const
 		{
 			hopefullyCurrentThreadIsManager(HERE);
-			SnapshotBase* allocatedSnapshot (createSnapshotBase());
-			Snapshot result (*cast_hopefully< Snapshot* >(allocatedSnapshot, HERE));
+			SnapshotPointerBase* allocatedSnapshot (createSnapshotBase());
+			SnapshotPointer result (*cast_hopefully< SnapshotPointer* >(allocatedSnapshot, HERE));
 			delete allocatedSnapshot;
 			return result;
 		}
@@ -223,22 +227,71 @@ public:
 	};
 
 public:
+	class PresentWatcher : public ThinkerPresentWatcherBase
+	{
+	public:
+		PresentWatcher (Present present) :
+			ThinkerPresentWatcherBase (present)
+		{
+		}
+		PresentWatcher () :
+			ThinkerPresentWatcherBase ()
+		{
+		}
+	public:
+		typename Thinker::SnapshotPointer createSnapshot() const
+		{
+			hopefullyCurrentThreadIsManager(HERE);
+			SnapshotPointerBase* allocatedSnapshot (createSnapshotBase());
+			SnapshotPointer result (*cast_hopefully< SnapshotPointer* >(allocatedSnapshot, HERE));
+			delete allocatedSnapshot;
+			return result;
+		}
+		void setPresent(Present present)
+		{
+			setPresentBase(present);
+		}
+		Present present()
+		{
+			return Present (presentBase());
+		}
+		~PresentWatcher ()
+		{
+		}
+	};
+
+public:
 	// This is the most efficient and general constructor, which does not
 	// require your state object to be default-constructible.  See notes in
 	// snapshottable about the other constructor variants.
 
+	Thinker (QSharedDataPointer< DataType > d) :
+		ThinkerObject (),
+		Snapshottable< DataType > (d)
+	{
+	}
 	Thinker (ThinkerManager& mgr, QSharedDataPointer< DataType > d) :
 		ThinkerObject (mgr),
 		Snapshottable< DataType > (d)
 	{
 	}
 
+	Thinker (const DataType &d) :
+		ThinkerObject (),
+		Snapshottable< DataType > (d)
+	{
+	}
 	Thinker (ThinkerManager& mgr, const DataType& d) :
 		ThinkerObject (mgr),
 		Snapshottable< DataType > (d)
 	{
 	}
 
+	Thinker () :
+		ThinkerObject (),
+		Snapshottable< DataType > ()
+	{
+	}
 	Thinker  (ThinkerManager& mgr) :
 		ThinkerObject (mgr),
 		Snapshottable< DataType > ()
@@ -250,7 +303,7 @@ private:
 	// thinker itself.
 
 	/*template< class T >*/ friend class Present;
-	Snapshot makeSnapshot()
+	SnapshotPointer makeSnapshot()
 	{
 		return Snapshottable< DataType >::makeSnapshot();
 	}
