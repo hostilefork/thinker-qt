@@ -1,7 +1,7 @@
 //
 // ThinkerManager.h
 // This file is part of Thinker-Qt
-// Copyright (C) 2009 HostileFork.com
+// Copyright (C) 2010 HostileFork.com
 //
 // Thinker-Qt is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -44,13 +44,14 @@ class ThinkerRunnerHelper;
 class ThinkerManager : public QObject {
 	Q_OBJECT
 
-friend class ThinkerObject;
+friend class ThinkerBase;
 friend class ThinkerRunner;
 friend class ThinkerRunnerHelper;
 friend class ThinkerPresentBase;
 
 public:
 	ThinkerManager ();
+	virtual ~ThinkerManager();
 
 public:
 	static ThinkerManager* globalInstance();
@@ -63,6 +64,14 @@ private:
 	bool hopefullyCurrentThreadIsManager(const codeplace& cp)
 	{
 		return hopefullyThreadIsManager(QThread::currentThread(), cp);
+	}
+	bool hopefullyThreadIsNotManager(const QThread* thread, const codeplace& cp)
+	{
+		return hopefully(thread != this->thread(), cp);
+	}
+	bool hopefullyCurrentThreadIsNotManager(const codeplace& cp)
+	{
+		return hopefullyThreadIsNotManager(QThread::currentThread(), cp);
 	}
 	bool hopefullyThreadIsThinker(const QThread* thread, const codeplace& cp)
 	{
@@ -79,7 +88,7 @@ private:
 	//
 	// But somewhat tautologically, it is true that *if* thinker code is
 	// running, it will be doing so on a thread of execution.  So if you
-	// have a QThread which passes the cast to a ThinkerObject thread...
+	// have a QThread which passes the cast to a ThinkerBase thread...
 	// then you may get the associated Thinker.
 private:
 	mapped< const QThread*, ThinkerRunner* >::manager threadMapManager;
@@ -88,23 +97,23 @@ private:
 		return threadMapManager;
 	}
 private:
-	mapped< const ThinkerObject*, ThinkerRunner* >::manager runnerMapManager;
-	mapped< const ThinkerObject*, ThinkerRunner* >::manager& getRunnerMapManager()
+	mapped< const ThinkerBase*, ThinkerRunner* >::manager runnerMapManager;
+	mapped< const ThinkerBase*, ThinkerRunner* >::manager& getRunnerMapManager()
 	{
 		return runnerMapManager;
 	}
-	ThinkerRunner* maybeGetRunnerForThinker(const ThinkerObject& thinker);
+	ThinkerRunner* maybeGetRunnerForThinker(const ThinkerBase& thinker);
 public:
 	const ThinkerRunner* maybeGetRunnerForThread(const QThread* thread);
-	ThinkerObject& getThinkerForRunner(const ThinkerRunner* runner);
+	ThinkerBase& getThinkerForRunner(const ThinkerRunner* runner);
 
 signals:
-	void anyThinkerUpdated();
+	void anyThinkerWritten();
 protected:
-	void unlockThinker(ThinkerObject& thinker);
+	void unlockThinker(ThinkerBase& thinker);
 
 private:
-	void createRunnerForThinker(ThinkerHolder< ThinkerObject > holder, const codeplace& cp);
+	void createRunnerForThinker(ThinkerHolder< ThinkerBase > holder, const codeplace& cp);
 
 public:
 	template<class ThinkerType>
@@ -143,7 +152,7 @@ public:
 	typename ThinkerType::Present run(ThinkerType* thinker) {
 		return run(thinker, HERE);
 	}
-	ThinkerPresentBase runBase(ThinkerHolder< ThinkerObject > holder) {
+	ThinkerPresentBase runBase(ThinkerHolder< ThinkerBase > holder) {
 		return runBase(holder, HERE);
 	}
 	void ensureThinkersPaused()
@@ -156,17 +165,17 @@ public:
 	}
 #endif
 
-	void requestAndWaitForCancelButAlreadyCanceledIsOkay(ThinkerObject& thinker);
+	void requestAndWaitForCancelButAlreadyCanceledIsOkay(ThinkerBase& thinker);
 
-	void ensureThinkerFinished(ThinkerObject& thinker);
+	void ensureThinkerFinished(ThinkerBase& thinker);
 
 public slots:
 	// TODO: review implications of
 	// http://stackoverflow.com/questions/1351217/qthreadwait-and-qthreadfinished
-	void onRunnerFinished(ThinkerObject* thinker, bool canceled);
+	void onRunnerFinished(ThinkerBase* thinker, bool canceled);
 
-public:
-	virtual ~ThinkerManager();
+private:
+	SignalThrottler _anyThinkerWrittenThrottler;
 };
 
 #endif

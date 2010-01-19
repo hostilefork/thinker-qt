@@ -1,7 +1,7 @@
 //
 // ThinkerRunner.h
 // This file is part of Thinker-Qt
-// Copyright (C) 2009 HostileFork.com
+// Copyright (C) 2010 HostileFork.com
 //
 // Thinker-Qt is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -41,10 +41,10 @@ class ThinkerRunnerHelper : public QObject
 	Q_OBJECT
 
 private:
-	ThinkerRunner* runner;
+	ThinkerRunner& runner;
 
 public:
-	ThinkerRunnerHelper(ThinkerRunner* runner);
+	ThinkerRunnerHelper(ThinkerRunner& runner);
 	~ThinkerRunnerHelper();
 
 public slots:
@@ -82,14 +82,14 @@ private:
 	// it's for communication between one manager and one thinker so use wakeOne()
 	mutable QWaitCondition stateChangeSignal;
 	mutable QMutex signalMutex;
-	ThinkerHolder< ThinkerObject > holder;
+	ThinkerHolder< ThinkerBase > holder;
 
 friend class ThinkerRunnerHelper;
 
 public:
 	ThinkerManager& getManager() const;
-	ThinkerObject& getThinker();
-	const ThinkerObject& getThinker() const;
+	ThinkerBase& getThinker();
+	const ThinkerBase& getThinker() const;
 
 	// It used to be that Thinkers (QObjects) were created on the Manager thread and then pushed
 	// to a thread of their own during the Run.  Since Run now queues, that push is deferred.  We
@@ -114,7 +114,7 @@ public:
 	}
 
 public:
-	ThinkerRunner (ThinkerHolder< ThinkerObject > holder);
+	ThinkerRunner (ThinkerHolder< ThinkerBase > holder);
 
 signals:
 	void breakEventLoop();
@@ -176,7 +176,7 @@ protected:
 	void run();
 
 signals:
-	void finished(ThinkerObject* thinker, bool canceled); // used to inherit from Thread
+	void finished(ThinkerBase* thinker, bool canceled); // used to inherit from Thread
 
 public:
 	virtual ~ThinkerRunner();

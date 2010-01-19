@@ -1,7 +1,7 @@
 //
 // SignalThrottler.cpp
 // This file is part of Thinker-Qt
-// Copyright (C) 2009 HostileFork.com
+// Copyright (C) 2010 HostileFork.com
 //
 // Thinker-Qt is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -24,17 +24,31 @@
 SignalThrottler::SignalThrottler (unsigned int milliseconds, QObject* parent) :
 	QObject (parent),
 	timer (),
-	millisecondsDefault (cast_hopefully<int>(milliseconds, HERE))
+	millisecondsDefault (cast_hopefully<int>(milliseconds, HERE)),
+	timerMutex (NULL == parent ? new QMutex () : NULL)
 {
 	timer.setSingleShot(true);
 	connect(&timer, SIGNAL(timeout()), this, SLOT(onTimeout()));
 }
 
+void SignalThrottler::enterThreadCheck()
+{
+	if (timerMutex)
+		timerMutex->lock();
+	else
+		hopefully(QThread::currentThread() == thread(), HERE);
+}
+
+void SignalThrottler::exitThreadCheck()
+{
+	if (timerMutex)
+		timerMutex->unlock();
+}
+
 void SignalThrottler::setMillisecondsDefault(unsigned int milliseconds)
 {
-	// TODO: better formalize signal throttler thread semantics.  This lets you change
-	// the throttle but any emits (including one currently being processed) will
-	// possibly use the old value
+	// This lets you change the throttle but any emits (including one currently
+	// being processed) will possibly use the old value
 	millisecondsDefault.fetchAndStoreRelaxed(cast_hopefully<int>(milliseconds, HERE));
 }
 
@@ -52,16 +66,14 @@ void SignalThrottler::emitThrottled()
 
 void SignalThrottler::emitThrottled(unsigned int milliseconds)
 {
-	// can't risk multiple threads trying to call this routine at the same time
-	hopefully(QThread::currentThread() == thread(), HERE);
-
 	// There is some overhead associated with timers, signals, etc.
 	// Don't set a timer if the time we'd wait to signal is less than that value.
 	// TODO: get this number from timing data, perhaps gathered at startup?
-
 	static const int overheadMsec = 5;
-
 	QTime currentTime = QTime::currentTime();
+
+	enterThreadCheck();
+
 	QTime worstCaseEmitTime = lastEmit.isNull() ? currentTime : lastEmit.addMSecs(milliseconds);
 	int deltaMilliseconds = currentTime.msecsTo(worstCaseEmitTime);
 
@@ -80,19 +92,25 @@ void SignalThrottler::emitThrottled(unsigned int milliseconds)
 		timer.start(deltaMilliseconds);
 		nextEmit = worstCaseEmitTime;
 	}
+
+	exitThreadCheck();
 }
 
 bool SignalThrottler::postpone()
 {
-	// can't risk multiple threads trying to call this routine at the same time
-	hopefully(QThread::currentThread() == thread(), HERE);
+	bool result (false);
+
+	enterThreadCheck();
 
 	if (not nextEmit.isNull()) {
 		timer.stop();
 		nextEmit = QTime ();
-		return true;
+		result = true;
 	}
-	return false;
+
+	exitThreadCheck();
+
+	return result;
 }
 
 SignalThrottler::~SignalThrottler()

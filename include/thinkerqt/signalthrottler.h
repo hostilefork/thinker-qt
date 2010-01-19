@@ -1,7 +1,7 @@
 //
 // SignalThrottler.h
 // This file is part of Thinker-Qt
-// Copyright (C) 2009 HostileFork.com
+// Copyright (C) 2010 HostileFork.com
 //
 // Thinker-Qt is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -25,6 +25,8 @@
 #include <QTimer>
 #include <QTime>
 #include <QAtomicInt>
+#include <QMutex>
+#include <QSharedPointer>
 
 #include "defs.h"
 
@@ -75,10 +77,20 @@ private slots:
 	void onTimeout();
 
 private:
+	// A signal throttler is not thread safe if you allocate the object with
+	// a parent.  It assumes in that case that all emitThrottled calls will
+	// be done from the parent QObject::thread(), and checks this with
+	// an assertion.  If there is no parent then a mutex is allocated and
+	// calls to emitThrottled will be thread safe.
+	void enterThreadCheck();
+	void exitThreadCheck();
+
+private:
 	QTime lastEmit; // when was the last emit?  (null if never)
 	QTime nextEmit; // when is the next emit scheduled?  (null if none)
 	QAtomicInt millisecondsDefault;
 	QTimer timer;
+	QSharedPointer<QMutex> timerMutex; // only allocated if no parent given...
 };
 
 #endif

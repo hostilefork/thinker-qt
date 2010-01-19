@@ -1,7 +1,7 @@
 //
 // Thinker.cpp
 // This file is part of Thinker-Qt
-// Copyright (C) 2009 HostileFork.com
+// Copyright (C) 2010 HostileFork.com
 //
 // Thinker-Qt is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -27,7 +27,7 @@
 // Thinker
 //
 
-ThinkerObject::ThinkerObject (ThinkerManager& mgr) :
+ThinkerBase::ThinkerBase (ThinkerManager& mgr) :
 	QObject (),
 	state (ThinkerThinking),
 	mgr (mgr)
@@ -35,7 +35,7 @@ ThinkerObject::ThinkerObject (ThinkerManager& mgr) :
 	getManager().hopefullyCurrentThreadIsManager(HERE);
 }
 
-ThinkerObject::ThinkerObject () :
+ThinkerBase::ThinkerBase () :
 	QObject (),
 	state (ThinkerThinking),
 	mgr (*ThinkerManager::globalInstance())
@@ -43,24 +43,20 @@ ThinkerObject::ThinkerObject () :
 	getManager().hopefullyCurrentThreadIsManager(HERE);
 }
 
-ThinkerManager& ThinkerObject::getManager() const
+ThinkerManager& ThinkerBase::getManager() const
 {
 	return mgr;
 }
 
-void ThinkerObject::beforePresentDetach()
+void ThinkerBase::afterThreadAttach()
 {
 }
 
-void ThinkerObject::afterThreadAttach()
+void ThinkerBase::beforeThreadDetach()
 {
 }
 
-void ThinkerObject::beforeThreadDetach()
-{
-}
-
-void ThinkerObject::lockForWrite(const codeplace& cp)
+void ThinkerBase::lockForWrite(const codeplace& cp)
 {
 	// we currently allow locking a thinker for writing
 	// on the manager thread between the time the
@@ -71,7 +67,7 @@ void ThinkerObject::lockForWrite(const codeplace& cp)
 	SnapshottableBase::lockForWrite(cp);
 }
 
-void ThinkerObject::unlock(const codeplace& cp)
+void ThinkerBase::unlock(const codeplace& cp)
 {
 	// we currently allow locking a thinker for writing
 	// on the manager thread between the time the
@@ -84,7 +80,7 @@ void ThinkerObject::unlock(const codeplace& cp)
 	SnapshottableBase::unlock(cp);
 }
 
-bool ThinkerObject::wasPauseRequested(unsigned long time) const
+bool ThinkerBase::wasPauseRequested(unsigned long time) const
 {
 	ThinkerRunner* runner (getManager().maybeGetRunnerForThinker(*this));
 	runner->hopefullyCurrentThreadIsPooled(HERE);
@@ -92,7 +88,7 @@ bool ThinkerObject::wasPauseRequested(unsigned long time) const
 }
 
 #ifndef Q_NO_EXCEPTIONS
-void ThinkerObject::pollForStopException(unsigned long time) const
+void ThinkerBase::pollForStopException(unsigned long time) const
 {
 	ThinkerRunner* runner (getManager().maybeGetRunnerForThinker(*this));
 	runner->hopefullyCurrentThreadIsPooled(HERE);
@@ -100,13 +96,13 @@ void ThinkerObject::pollForStopException(unsigned long time) const
 }
 #endif
 
-void ThinkerObject::onResumeThinking()
+void ThinkerBase::onResumeThinking()
 {
 	getManager().hopefullyCurrentThreadIsThinker(HERE);
 	resume();
 }
 
-ThinkerObject::~ThinkerObject ()
+ThinkerBase::~ThinkerBase ()
 {
 	getManager().hopefullyCurrentThreadIsManager(HERE);
 	hopefully(getManager().maybeGetRunnerForThinker(*this) == NULL, HERE);

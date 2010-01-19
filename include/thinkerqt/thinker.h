@@ -1,7 +1,7 @@
 //
 // Thinker.h
 // This file is part of Thinker-Qt
-// Copyright (C) 2009 HostileFork.com
+// Copyright (C) 2010 HostileFork.com
 //
 // Thinker-Qt is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -37,21 +37,21 @@ class ThinkerRunner;
 class ThinkerPresentWatcherBase;
 
 //
-// ThinkerObject
+// ThinkerBase
 //
 // A "Thinker" is a task which runs on its own thread and is supposed to make
 // some kind of calculation which other threads are interested in.  The way
 // that progress is communicated back is through read-only "snapshots" of
 // the object's state.
 //
-// The reason there is a base "ThinkerObject" which is separate from the
+// The reason there is a base "ThinkerBase" which is separate from the
 // "Thinker" template is due to limitations of Qt's moc in allowing you to
 // declare templated QObjects.  See this article for more information:
 //
 //	http://doc.trolltech.com/qq/qq15-academic.html
 //
 
-class ThinkerObject : protected QObject, virtual public SnapshottableBase {
+class ThinkerBase : protected QObject, virtual public SnapshottableBase {
 	// To help eliminate the misunderstanding of introducing control signals designed to
 	// change a thinker from the simple forward path of start=>pause=>continue/stop,
 	// it does not publicly inherit from QObject.
@@ -77,8 +77,8 @@ friend class ThinkerManager;
 friend class ThinkerPresentWatcherBase;
 
 public:
-	ThinkerObject (ThinkerManager& mgr);
-	ThinkerObject ();
+	ThinkerBase (ThinkerManager& mgr);
+	ThinkerBase ();
 
 public:
 	ThinkerManager& getManager() const;
@@ -92,15 +92,6 @@ public:
 #ifndef Q_NO_EXCEPTIONS
 	void pollForStopException(unsigned long time = 0) const;
 #endif
-
-protected:
-	// When a present is detached from a thinker, then that is the cue
-	// that it will be stopped and destroyed.  However, since the thread
-	// is in the middle of processing the Thinker destructor will not
-	// immediately run.  This hook lets you do some bookkeeping
-	// when the present goes away.
-
-	virtual void beforePresentDetach();
 
 friend class ThinkerPresentBase;
 
@@ -157,7 +148,7 @@ protected:
 	}
 
 public:
-	virtual ~ThinkerObject();
+	virtual ~ThinkerBase();
 };
 
 
@@ -169,8 +160,8 @@ public:
 // type that can think, and that trickiness is part of the reason I've divided
 // this into so many component classes.  You'd simply do your own derivation
 // like the below to create your base template class, except instead of
-// ThinkerObject you would derive from your QObject base class that
-// you derived from ThinkerObject.
+// ThinkerBase you would derive from your QObject base class that
+// you derived from ThinkerBase.
 //
 // In order to get finer control over when and how snapshots can be
 // taken, we inherit *privately* from the Snapshottable.  This disables
@@ -181,7 +172,7 @@ public:
 // themselves...
 
 template< class DataTypeParam >
-class Thinker : public ThinkerObject, virtual private Snapshottable< DataTypeParam >
+class Thinker : public ThinkerBase, virtual private Snapshottable< DataTypeParam >
 {
 public:
 	typedef DataTypeParam DataType;
@@ -205,7 +196,7 @@ public:
 		{
 		}
 	protected:
-		Present (ThinkerHolder< ThinkerObject > holder) :
+		Present (ThinkerHolder< ThinkerBase > holder) :
 			ThinkerPresentBase (holder)
 		{
 		}
@@ -266,34 +257,34 @@ public:
 	// snapshottable about the other constructor variants.
 
 	Thinker (QSharedDataPointer< DataType > d) :
-		ThinkerObject (),
+		ThinkerBase (),
 		Snapshottable< DataType > (d)
 	{
 	}
 	Thinker (ThinkerManager& mgr, QSharedDataPointer< DataType > d) :
-		ThinkerObject (mgr),
+		ThinkerBase (mgr),
 		Snapshottable< DataType > (d)
 	{
 	}
 
 	Thinker (const DataType &d) :
-		ThinkerObject (),
+		ThinkerBase (),
 		Snapshottable< DataType > (d)
 	{
 	}
 	Thinker (ThinkerManager& mgr, const DataType& d) :
-		ThinkerObject (mgr),
+		ThinkerBase (mgr),
 		Snapshottable< DataType > (d)
 	{
 	}
 
 	Thinker () :
-		ThinkerObject (),
+		ThinkerBase (),
 		Snapshottable< DataType > ()
 	{
 	}
 	Thinker  (ThinkerManager& mgr) :
-		ThinkerObject (mgr),
+		ThinkerBase (mgr),
 		Snapshottable< DataType > ()
 	{
 	}

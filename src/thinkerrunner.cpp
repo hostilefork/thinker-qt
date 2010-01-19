@@ -1,7 +1,7 @@
 //
 // ThinkerRunner.cpp
 // This file is part of Thinker-Qt
-// Copyright (C) 2009 HostileFork.com
+// Copyright (C) 2010 HostileFork.com
 //
 // Thinker-Qt is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -66,39 +66,39 @@ inline QTextStream& operator << (QTextStream& o, const ThinkerRunner::State& sta
 // ThinkerRunnerHelper
 //
 
-ThinkerRunnerHelper::ThinkerRunnerHelper(ThinkerRunner* runner) :
+ThinkerRunnerHelper::ThinkerRunnerHelper(ThinkerRunner& runner) :
 	QObject (), // affinity from current thread, no parent
 	runner (runner)
 {
-/*	runner->getManager().hopefullyCurrentThreadIsThinker(HERE); */ // check not valid until we are in runCore()...
+	runner.getManager().hopefullyCurrentThreadIsNotManager(HERE);
 }
 
 void ThinkerRunnerHelper::queuedQuit()
 {
-	runner->quit();
+	runner.getManager().hopefullyCurrentThreadIsThinker(HERE);
+	runner.quit();
 }
 
 void ThinkerRunnerHelper::markFinished()
 {
-	runner->hopefullyCurrentThreadIsPooled(HERE);
+	runner.hopefullyCurrentThreadIsPooled(HERE);
 
-	runner->signalMutex.lock();
-	if (runner->state == ThinkerRunner::RunnerCanceling) {
+	runner.signalMutex.lock();
+	if (runner.state == ThinkerRunner::RunnerCanceling) {
 		// we don't let it transition to finished if abort is requested
 	} else {
-		runner->state.hopefullyInSet(ThinkerRunner::RunnerThinking, ThinkerRunner::RunnerPausing, HERE);
-		runner->state.hopefullyAlter(ThinkerRunner::RunnerFinished, HERE);
-		runner->stateChangeSignal.wakeOne();
-		runner->quit();
+		runner.state.hopefullyInSet(ThinkerRunner::RunnerThinking, ThinkerRunner::RunnerPausing, HERE);
+		runner.state.hopefullyAlter(ThinkerRunner::RunnerFinished, HERE);
+		runner.stateChangeSignal.wakeOne();
+		runner.quit();
 	}
 
-	runner->signalMutex.unlock();
+	runner.signalMutex.unlock();
 }
 
 ThinkerRunnerHelper::~ThinkerRunnerHelper()
 {
-	// check doesn't work due to map destroyed before destructor called
-/*	runner->getManager().hopefullyCurrentThreadIsThinker(HERE); */
+	runner.getManager().hopefullyCurrentThreadIsNotManager(HERE);
 }
 
 
@@ -107,7 +107,7 @@ ThinkerRunnerHelper::~ThinkerRunnerHelper()
 // ThinkerRunner
 //
 
-ThinkerRunner::ThinkerRunner(ThinkerHolder< ThinkerObject > holder) :
+ThinkerRunner::ThinkerRunner(ThinkerHolder< ThinkerBase > holder) :
 	QEventLoop (),
 	state (RunnerInitializing, HERE),
 	holder (holder)
@@ -133,7 +133,7 @@ ThinkerRunner::ThinkerRunner(ThinkerHolder< ThinkerObject > holder) :
 	// I should research the handling of these signals, because right now they are
 	// queued -- which means as long as the worker thread is doing something (e.g.
 	// rendering, or regenerating decks) then the thread object will not be freed.
-	connect(this, SIGNAL(finished(ThinkerObject*, bool)), &getManager(), SLOT(onRunnerFinished(ThinkerObject*, bool)), Qt::QueuedConnection);
+	connect(this, SIGNAL(finished(ThinkerBase*, bool)), &getManager(), SLOT(onRunnerFinished(ThinkerBase*, bool)), Qt::QueuedConnection);
 }
 
 ThinkerManager& ThinkerRunner::getManager() const
@@ -141,11 +141,11 @@ ThinkerManager& ThinkerRunner::getManager() const
 	return getThinker().getManager();
 }
 
-const ThinkerObject& ThinkerRunner::getThinker() const {
+const ThinkerBase& ThinkerRunner::getThinker() const {
 	return *holder.data();
 }
 
-ThinkerObject& ThinkerRunner::getThinker() {
+ThinkerBase& ThinkerRunner::getThinker() {
 	return *holder.data();
 }
 
@@ -167,7 +167,7 @@ void ThinkerRunner::run()
 		chronicle(debugThinkerRunner_Run, message, HERE);
 	}
 
-	ThinkerRunnerHelper helper (this);
+	ThinkerRunnerHelper helper (*this);
 
 	connect(this, SIGNAL(moveThinkerToThread(QThread*, QSemaphore*)),
 		this, SLOT(onMoveThinkerToThread(QThread*, QSemaphore*)), Qt::QueuedConnection);
@@ -188,11 +188,11 @@ void ThinkerRunner::run()
 	// TODO: Tend to race condition when someone is enumerating the runners and tries to
 	// pause them all, but this addition happens during the enumeration, etc.
 
-	if (getThinker().state == ThinkerObject::ThinkerCanceled) {
+	if (getThinker().state == ThinkerBase::ThinkerCanceled) {
 		state.hopefullyTransition(RunnerInitializing, RunnerCanceled, HERE);
 	} else {
 		mapped< const QThread*, ThinkerRunner* > mapThread (QThread::currentThread(), this, getManager().getThreadMapManager(), HERE);
-		mapped< const ThinkerObject*, ThinkerRunner* > mapThinker (&getThinker(), this, getManager().getRunnerMapManager(), HERE);
+		mapped< const ThinkerBase*, ThinkerRunner* > mapThinker (&getThinker(), this, getManager().getRunnerMapManager(), HERE);
 
 		if (debugThinkerRunner_Run) {
 			QString message;
@@ -521,7 +521,7 @@ bool ThinkerRunner::isPaused() const {
 	result = (state == RunnerPaused) or (state == RunnerPausing);
 	if (result) {
 		tracked< bool > debugPausedThinkers (true, HERE);
-		chronicle(debugPausedThinkers, "ThinkerObject was paused by " + state.whereLastAssigned().toString(), HERE);
+		chronicle(debugPausedThinkers, "ThinkerBase was paused by " + state.whereLastAssigned().toString(), HERE);
 	}
 	signalMutex.unlock();
 	return result;
@@ -564,10 +564,9 @@ void ThinkerRunner::pollForStopException(unsigned long time) const
 
 ThinkerRunner::~ThinkerRunner()
 {
-	// No longer true.  Thread pool deletes this object.  There's no safe moment
+	// Thread pool deletes this object.  There's no safe moment
 	// to delete it on the manager thread unless you have called waitForDone()
-/*	getManager().hopefullyCurrentThreadIsManager(HERE); */
+	getManager().hopefullyCurrentThreadIsNotManager(HERE);
 
-/*	hopefully(wait(), HERE); */ // used when we had a dedicated thread
 	state.hopefullyInSet(RunnerCanceled, RunnerFinished, HERE);
 }

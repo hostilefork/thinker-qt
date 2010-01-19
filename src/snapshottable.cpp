@@ -1,7 +1,7 @@
 //
 // Snapshottable.cpp
 // This file is part of Thinker-Qt
-// Copyright (C) 2009 HostileFork.com
+// Copyright (C) 2010 HostileFork.com
 //
 // Thinker-Qt is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -37,8 +37,8 @@ void SnapshottableBase::lockForWrite(const codeplace& cp)
 
 void SnapshottableBase::unlock(const codeplace& cp)
 {
-	dLock.unlock();
 	lockedForWrite.hopefullyTransition(true, false, cp);
+	dLock.unlock();
 }
 
 SnapshottableBase::~SnapshottableBase ()

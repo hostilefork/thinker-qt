@@ -1,7 +1,7 @@
 //
 // ThinkerPresent.h
 // This file is part of Thinker-Qt
-// Copyright (C) 2009 HostileFork.com
+// Copyright (C) 2010 HostileFork.com
 //
 // Thinker-Qt is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -27,7 +27,7 @@
 #include "defs.h"
 #include "snapshottable.h"
 
-class ThinkerObject;
+class ThinkerBase;
 class ThinkerManager;
 
 // ThinkerHolder
@@ -66,9 +66,9 @@ public:
 		QSharedPointer< ThinkerType >(other)
 	{
 	}
-	ThinkerObject& getThinkerBase()
+	ThinkerBase& getThinkerBase()
 	{
-		return *cast_hopefully< ThinkerObject* >(this->data(), HERE);
+		return *cast_hopefully< ThinkerBase* >(this->data(), HERE);
 	}
 	ThinkerType& getThinker()
 	{
@@ -93,7 +93,7 @@ public:
 class ThinkerPresentBase
 {
 protected:
-	ThinkerHolder< ThinkerObject > holder;
+	ThinkerHolder< ThinkerBase > holder;
 
 public:
 	// Following pattern set up by QtConcurrent's QFuture
@@ -103,7 +103,7 @@ public:
 	ThinkerPresentBase (const ThinkerPresentBase& other);
 	ThinkerPresentBase& operator= (const ThinkerPresentBase & other);
 protected:
-	ThinkerPresentBase (ThinkerHolder< ThinkerObject > holder);
+	ThinkerPresentBase (ThinkerHolder< ThinkerBase > holder);
 	friend class ThinkerManager;
 
 public:
@@ -116,8 +116,8 @@ protected:
 
 protected:
 	// Is this a good idea to export in the API?
-	ThinkerObject& getThinkerBase();
-	const ThinkerObject& getThinkerBase() const;
+	ThinkerBase& getThinkerBase();
+	const ThinkerBase& getThinkerBase() const;
 
 public:
 	// QFuture thinks of returning a list of results, whereas we snapshot

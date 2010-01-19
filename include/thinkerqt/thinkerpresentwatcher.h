@@ -1,7 +1,7 @@
 //
 // ThinkerPresentWatcher.h
 // This file is part of Thinker-Qt
-// Copyright (C) 2009 HostileFork.com
+// Copyright (C) 2010 HostileFork.com
 //
 // Thinker-Qt is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -23,12 +23,13 @@
 #define THINKERQT__THINKERPRESENTWATCHER_H
 
 #include <QObject>
+#include <QSharedPointer>
 
 #include "defs.h"
 #include "thinkerpresent.h"
 #include "signalthrottler.h"
 
-class ThinkerObject;
+class ThinkerBase;
 class ThinkerManager;
 
 //
@@ -47,8 +48,8 @@ class ThinkerPresentWatcherBase : public QObject
 protected:
 	ThinkerPresentBase present;
 	unsigned int milliseconds;
-	SignalThrottler* notificationThrottler;
-	friend class ThinkerObject;
+	QSharedPointer<SignalThrottler> notificationThrottler;
+	friend class ThinkerBase;
 
 public:
 	ThinkerPresentWatcherBase ();
@@ -58,12 +59,12 @@ protected:
 
 protected:
 	bool hopefullyCurrentThreadIsManager(const codeplace& cp) const
-		{ return present.hopefullyCurrentThreadIsManager(cp); }
+		{ return present != ThinkerPresentBase() ? present.hopefullyCurrentThreadIsManager(cp) : true; }
 
 protected:
 	// Is this a good idea to export in the API?
-	ThinkerObject& getThinkerBase();
-	const ThinkerObject& getThinkerBase() const;
+	ThinkerBase& getThinkerBase();
+	const ThinkerBase& getThinkerBase() const;
 
 public:
 	// QFuture thinks of returning a list of results, whereas we snapshot
@@ -114,7 +115,8 @@ public:
 	ThinkerPresentBase presentBase();
 
 private:
-	void removeFromThinkerWatchers();
+	void doConnections();
+	void doDisconnections();
 public:
 	virtual ~ThinkerPresentWatcherBase();
 };
