@@ -95,66 +95,66 @@ public:
 	// Following pattern set up by QtConcurrent's QFuture
 	// default construction yields an empty future that just thinks of itself as canceled
 	ThinkerPresentBase ();
-	ThinkerPresentBase ( const ThinkerPresentBase& other );
-	ThinkerPresentBase& operator= ( const ThinkerPresentBase & other );
+	ThinkerPresentBase (const ThinkerPresentBase& other);
+	ThinkerPresentBase& operator= (const ThinkerPresentBase & other);
 	virtual ~ThinkerPresentBase ();
 
 protected:
-	ThinkerPresentBase ( ThinkerHolder< ThinkerBase > holder );
+	ThinkerPresentBase (ThinkerHolder< ThinkerBase > holder);
 	friend class ThinkerManager;
 
 public:
-	bool operator!= ( const ThinkerPresentBase& other ) const;
-	bool operator== ( const ThinkerPresentBase& other ) const;
+	bool operator!= (const ThinkerPresentBase& other) const;
+	bool operator== (const ThinkerPresentBase& other) const;
 
 protected:
-	bool hopefullyCurrentThreadIsManager ( const codeplace& cp ) const;
+	bool hopefullyCurrentThreadIsManager(const codeplace& cp) const;
 	friend class ThinkerPresentWatcherBase;
 
 protected:
 	// Is this a good idea to export in the API?
-	ThinkerBase& getThinkerBase ();
-	const ThinkerBase& getThinkerBase () const;
+	ThinkerBase& getThinkerBase();
+	const ThinkerBase& getThinkerBase() const;
 
 public:
 	// QFuture thinks of returning a list of results, whereas we snapshot
-	/* T result () const; */
+	/* T result() const; */
 	/* operator T () const; */
-	/* T resultAt ( int index ) const; */
-	/* int resultCount () const; */
-	/* QList<T> results () const; */
-	/* bool isResultReadyAt ( int index ) const; */
+	/* T resultAt(int index) const; */
+	/* int resultCount() const; */
+	/* QList<T> results() const; */
+	/* bool isResultReadyAt(int index) const; */
 
-	SnapshotPointerBase* createSnapshotBase () const;
+	SnapshotPointerBase* createSnapshotBase() const;
 
 public:
 	// The isStarted () method of QFuture isn't relevant to a Thinker
 	// It was "started" the moment it was created
 	// But everything else applies in this section
 
-	/* bool isStarted () const */
+	/* bool isStarted() const */
 
-	bool isCanceled () const;
-	bool isFinished () const;
-	bool isPaused () const;
-	bool isRunning () const;
+	bool isCanceled() const;
+	bool isFinished() const;
+	bool isPaused() const;
+	bool isRunning() const;
 
-	void cancel ();
-	void pause ();
-	void resume ();
-	void setPaused ( bool paused );
-	void togglePaused ();
+	void cancel();
+	void pause();
+	void resume();
+	void setPaused(bool paused);
+	void togglePaused();
 
-	void waitForFinished ();
+	void waitForFinished();
 
 public:
 	// TODO: Should Thinkers implement a progress API like QFuture?
 	// QFuture's does not apply to run() interfaces...
 
-	/* int progressMaximum () const; */
-	/* int progressMinimum () const; */
-	/* QString progressText () const; */
-	/* int progressValue () const; */
+	/* int progressMaximum() const; */
+	/* int progressMinimum() const; */
+	/* QString progressText() const; */
+	/* int progressValue() const; */
 
 protected:
 	ThinkerHolder< ThinkerBase > holder;

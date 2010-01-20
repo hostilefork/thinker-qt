@@ -51,30 +51,30 @@ class SignalThrottler : public QObject
 	Q_OBJECT
 
 public:
-	SignalThrottler ( unsigned int milliseconds = 0, QObject* parent = NULL );
+	SignalThrottler (unsigned int milliseconds = 0, QObject* parent = NULL);
 	~SignalThrottler ();
 
 public:
-	void setMillisecondsDefault( unsigned int milliseconds );
-	void emitThrottled ( unsigned int milliseconds );
+	void setMillisecondsDefault(unsigned int milliseconds);
+	void emitThrottled(unsigned int milliseconds);
 
 	// Because we are dealing with a delay, it may be the case that
 	// we don't want the signal to happen.  Postpone clears any
 	// pending events and returns whether an event was pending
-	bool postpone ();
+	bool postpone();
 
 public slots:
 	// This function is the slot you call or connect an unthrottled signal
 	// to.  It sort of defeats the point a bit to connect an unthrottled
 	// signal here which happens frequently rather than call it as a
 	// function because you'll still pay for the event queue processing
-	void emitThrottled ();
+	void emitThrottled();
 
 signals:
-	void throttled ();
+	void throttled();
 
 private slots:
-	void onTimeout ();
+	void onTimeout();
 
 private:
 	// A signal throttler is not thread safe if you allocate the object with
@@ -82,8 +82,8 @@ private:
 	// be done from the parent QObject::thread(), and checks this with
 	// an assertion.  If there is no parent then a mutex is allocated and
 	// calls to emitThrottled will be thread safe.
-	void enterThreadCheck ();
-	void exitThreadCheck ();
+	void enterThreadCheck();
+	void exitThreadCheck();
 
 private:
 	QTime lastEmit; // when was the last emit?  (null if never)

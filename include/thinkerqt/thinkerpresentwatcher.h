@@ -50,48 +50,48 @@ public:
 	virtual ~ThinkerPresentWatcherBase ();
 
 signals:
-	void written ();
-	void finished ();
+	void written();
+	void finished();
 
 public:
-	void setThrottleTime ( unsigned int milliseconds );
-	void setPresentBase ( ThinkerPresentBase present );
-	ThinkerPresentBase presentBase ();
+	void setThrottleTime(unsigned int milliseconds);
+	void setPresentBase(ThinkerPresentBase present);
+	ThinkerPresentBase presentBase();
 
 public:
-	SnapshotPointerBase* createSnapshotBase () const
+	SnapshotPointerBase* createSnapshotBase() const
 		{ return present.createSnapshotBase(); }
 
 public:
-	bool isCanceled () const
+	bool isCanceled() const
 		{ return present.isCanceled(); }
 
-	bool isFinished () const
+	bool isFinished() const
 		{ return present.isFinished(); }
 
-	bool isPaused () const
+	bool isPaused() const
 		{ return present.isPaused(); }
 
-	bool isRunning () const
+	bool isRunning() const
 		{ return present.isRunning(); }
 
 public:
-	void cancel ()
+	void cancel()
 		{ present.cancel(); }
 
-	void pause ()
+	void pause()
 		{ present.pause(); }
 
-	void resume ()
+	void resume()
 		{ present.resume(); }
 
-	void setPaused ( bool paused )
+	void setPaused(bool paused)
 		{ present.setPaused(paused); }
 
-	void togglePaused ()
+	void togglePaused()
 		{ present.togglePaused(); }
 
-	void waitForFinished ()
+	void waitForFinished()
 		{ present.waitForFinished(); }
 
 private:
@@ -99,17 +99,17 @@ private:
 	void doDisconnections();
 
 protected:
-	ThinkerPresentWatcherBase ( ThinkerPresentBase present );
+	ThinkerPresentWatcherBase (ThinkerPresentBase present);
 	friend class ThinkerManager;
 
 protected:
-	bool hopefullyCurrentThreadIsManager ( const codeplace& cp ) const
+	bool hopefullyCurrentThreadIsManager(const codeplace& cp) const
 		{ return present != ThinkerPresentBase() ? present.hopefullyCurrentThreadIsManager(cp) : true; }
 
 protected:
 	// Is this a good idea to export in the API?
-	ThinkerBase& getThinkerBase ();
-	const ThinkerBase& getThinkerBase () const;
+	ThinkerBase& getThinkerBase();
+	const ThinkerBase& getThinkerBase() const;
 
 protected:
 	ThinkerPresentBase present;

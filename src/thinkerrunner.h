@@ -44,12 +44,12 @@ private:
 	ThinkerRunner& runner;
 
 public:
-	ThinkerRunnerHelper ( ThinkerRunner& runner );
+	ThinkerRunnerHelper (ThinkerRunner& runner);
 	~ThinkerRunnerHelper ();
 
 public slots:
-	void markFinished ();
-	void queuedQuit ();
+	void markFinished();
+	void queuedQuit();
 };
 
 class ThinkerRunner : public QEventLoop, public QRunnable
@@ -69,85 +69,85 @@ private:
 	};
 
 public:
-	ThinkerRunner ( ThinkerHolder< ThinkerBase > holder );
+	ThinkerRunner (ThinkerHolder< ThinkerBase > holder);
 	virtual ~ThinkerRunner ();
 
 public:
-	ThinkerManager& getManager () const;
-	ThinkerBase& getThinker ();
-	const ThinkerBase& getThinker () const;
+	ThinkerManager& getManager() const;
+	ThinkerBase& getThinker();
+	const ThinkerBase& getThinker() const;
 
 	// It used to be that Thinkers (QObjects) were created on the Manager thread and then pushed
 	// to a thread of their own during the Run.  Since Run now queues, that push is deferred.  We
 	// only know which thread the ThreadPool will put a Thinker onto when ThreadRunner::run()
 	// happens, so we make a moveThinkerToThread request from that
 signals:
-	void moveThinkerToThread ( QThread* thread, QSemaphore* numThreadsMoved );
+	void moveThinkerToThread(QThread* thread, QSemaphore* numThreadsMoved);
 
 public slots:
-	void onMoveThinkerToThread ( QThread* thread, QSemaphore* numThreadsMoved );
+	void onMoveThinkerToThread(QThread* thread, QSemaphore* numThreadsMoved);
 
 public:
-	bool hopefullyCurrentThreadIsPooled ( const codeplace& cp ) const;
+	bool hopefullyCurrentThreadIsPooled(const codeplace& cp) const;
 
 signals:
-	void breakEventLoop ();
-	void resumeThinking ();
-	void finished ( ThinkerBase* thinker, bool canceled );
+	void breakEventLoop();
+	void resumeThinking();
+	void finished(ThinkerBase* thinker, bool canceled);
 
 public:
-	void requestPause ( const codeplace& cp ) {
+	void requestPause (const codeplace& cp) {
 		requestPauseCore(false, cp);
 	}
-	void waitForPause () {
+	void waitForPause() {
 		waitForPauseCore(false);
 	}
 
-	void requestPauseButCanceledIsOkay ( const codeplace& cp ) {
+	void requestPauseButCanceledIsOkay(const codeplace& cp) {
 		requestPauseCore(true, cp);
 	}
-	void waitForPauseButCanceledIsOkay () {
+	void waitForPauseButCanceledIsOkay() {
 		waitForPauseCore(true);
 	}
 
-	void requestCancel ( const codeplace& cp ) {
+	void requestCancel(const codeplace& cp) {
 		requestCancelCore(false, cp);
 	}
-	void requestCancelButAlreadyCanceledIsOkay ( const codeplace& cp ) {
+	void requestCancelButAlreadyCanceledIsOkay(const codeplace& cp) {
 		requestCancelCore(true, cp);
 	}
 
-	void waitForCancel (); // no variant because we can't distinguish between an abort we asked for and
+	void waitForCancel(); // no variant because we can't distinguish between an abort we asked for and
 
-	void requestResume ( const codeplace& cp ) {
+	void requestResume(const codeplace& cp) {
 		requestResumeCore(false, cp);
 	}
-	void requestResumeButCanceledIsOkay ( const codeplace& cp ) {
+	void requestResumeButCanceledIsOkay(const codeplace& cp) {
 		requestResumeCore(true, cp);
 	}
-	void waitForResume ( const codeplace& cp );
+	void waitForResume(const codeplace& cp);
 
-	void requestFinishAndWaitForFinish ( const codeplace& cp );
+	void requestFinishAndWaitForFinish(const codeplace& cp);
 
 public:
-	bool isFinished () const;
-	bool isCanceled () const;
-	bool isPaused () const;
-	bool wasPauseRequested ( unsigned long time = 0 ) const;
+	bool isFinished() const;
+	bool isCanceled() const;
+	bool isPaused() const;
+	bool wasPauseRequested(unsigned long time = 0) const;
 
 #ifndef Q_NO_EXCEPTIONS
 public:
-	void pollForStopException ( unsigned long time = 0 ) const;
+	void pollForStopException(unsigned long time = 0) const;
 #endif
 
 protected:
-	void run ();
+	void run();
 
 private:
-	void requestPauseCore ( bool isCanceledOkay, const codeplace& cp );
-	void waitForPauseCore ( bool isCanceledOkay);
-	void requestCancelCore ( bool isAlreadyCanceledOkay, const codeplace& cp );
-	void requestResumeCore ( bool isCanceledOkay, const codeplace& cp );
+	void requestPauseCore(bool isCanceledOkay, const codeplace& cp);
+	void waitForPauseCore(bool isCanceledOkay);
+	void requestCancelCore(bool isAlreadyCanceledOkay, const codeplace& cp);
+	void requestResumeCore(bool isCanceledOkay, const codeplace& cp);
 
 #ifndef Q_NO_EXCEPTIONS
 private:
@@ -163,7 +163,7 @@ private:
 	ThinkerHolder< ThinkerBase > holder;
 
 	// http://www.learncpp.com/cpp-tutorial/93-overloading-the-io-operators/
-	friend QTextStream& operator << (QTextStream& o, const State& state);
+	friend QTextStream& operator<< (QTextStream& o, const State& state);
 	friend class ThinkerRunnerHelper;
 };
 
