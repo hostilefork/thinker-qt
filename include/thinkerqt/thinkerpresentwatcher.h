@@ -45,80 +45,77 @@ class ThinkerPresentWatcherBase : public QObject
 {
 	Q_OBJECT
 
-protected:
-	ThinkerPresentBase present;
-	unsigned int milliseconds;
-	QSharedPointer<SignalThrottler> notificationThrottler;
-	friend class ThinkerBase;
-
 public:
 	ThinkerPresentWatcherBase ();
-protected:
-	ThinkerPresentWatcherBase (ThinkerPresentBase present);
-	friend class ThinkerManager;
-
-protected:
-	bool hopefullyCurrentThreadIsManager(const codeplace& cp) const
-		{ return present != ThinkerPresentBase() ? present.hopefullyCurrentThreadIsManager(cp) : true; }
-
-protected:
-	// Is this a good idea to export in the API?
-	ThinkerBase& getThinkerBase();
-	const ThinkerBase& getThinkerBase() const;
-
-public:
-	// QFuture thinks of returning a list of results, whereas we snapshot
-	/* T result () const;
-	operator T () const; */
-
-	SnapshotPointerBase* createSnapshotBase() const { return present.createSnapshotBase(); }
-
-	/* T resultAt ( int index ) const;
-	int resultCount () const;
-	QList<T> results () const;
-	bool isResultReadyAt ( int index ) const; */
-
-public:
-	// The isStarted () method of QFuture isn't relevant to a Thinker
-	// It was "started" the moment it was created
-	// But everything else applies
-	/* bool isStarted () const */
-
-	bool isCanceled () const { return present.isCanceled(); }
-	bool isFinished () const { return present.isFinished(); }
-	bool isPaused () const { return present.isPaused(); }
-	bool isRunning () const { return present.isRunning(); }
-
-	void cancel () { present.cancel(); }
-	void pause () { present.pause(); }
-	void resume () { present.resume(); }
-	void setPaused ( bool paused ) { present.setPaused(paused); }
-	void togglePaused () { present.togglePaused(); }
-
-	void waitForFinished () { present.waitForFinished(); }
-
-public:
-	// TODO: Should Thinkers implement a progress API like QFuture?
-	// QFuture's does not apply to run() interfaces...
-	/* int progressMaximum () const;
-	int progressMinimum () const;
-	QString	progressText () const;
-	int progressValue () const; */
+	virtual ~ThinkerPresentWatcherBase ();
 
 signals:
-	void written();
-	void finished();
+	void written ();
+	void finished ();
 
 public:
-	void setThrottleTime(unsigned int milliseconds);
-	void setPresentBase(ThinkerPresentBase present);
-	ThinkerPresentBase presentBase();
+	void setThrottleTime ( unsigned int milliseconds );
+	void setPresentBase ( ThinkerPresentBase present );
+	ThinkerPresentBase presentBase ();
+
+public:
+	SnapshotPointerBase* createSnapshotBase () const
+		{ return present.createSnapshotBase(); }
+
+public:
+	bool isCanceled () const
+		{ return present.isCanceled(); }
+
+	bool isFinished () const
+		{ return present.isFinished(); }
+
+	bool isPaused () const
+		{ return present.isPaused(); }
+
+	bool isRunning () const
+		{ return present.isRunning(); }
+
+public:
+	void cancel ()
+		{ present.cancel(); }
+
+	void pause ()
+		{ present.pause(); }
+
+	void resume ()
+		{ present.resume(); }
+
+	void setPaused ( bool paused )
+		{ present.setPaused(paused); }
+
+	void togglePaused ()
+		{ present.togglePaused(); }
+
+	void waitForFinished ()
+		{ present.waitForFinished(); }
 
 private:
 	void doConnections();
 	void doDisconnections();
-public:
-	virtual ~ThinkerPresentWatcherBase();
+
+protected:
+	ThinkerPresentWatcherBase ( ThinkerPresentBase present );
+	friend class ThinkerManager;
+
+protected:
+	bool hopefullyCurrentThreadIsManager ( const codeplace& cp ) const
+		{ return present != ThinkerPresentBase() ? present.hopefullyCurrentThreadIsManager(cp) : true; }
+
+protected:
+	// Is this a good idea to export in the API?
+	ThinkerBase& getThinkerBase ();
+	const ThinkerBase& getThinkerBase () const;
+
+protected:
+	ThinkerPresentBase present;
+	unsigned int milliseconds;
+	QSharedPointer< SignalThrottler > notificationThrottler;
+	friend class ThinkerBase;
 };
 
 #endif

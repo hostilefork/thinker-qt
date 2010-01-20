@@ -64,40 +64,29 @@ private:
 		ThinkerCanceled
 	};
 
-private:
-	// It is the ThinkerManager's responsibility to do state bookkeeping
-	// Thus state changes *only on the manager's thread*
-
-	State state;
-	ThinkerManager& mgr;
-	QReadWriteLock watchersLock;
-	QSet<ThinkerPresentWatcherBase*> watchers;
-
-friend class ThinkerManager;
-friend class ThinkerPresentWatcherBase;
-
 public:
-	ThinkerBase (ThinkerManager& mgr);
+	ThinkerBase ( ThinkerManager& mgr );
 	ThinkerBase ();
+	virtual ~ThinkerBase ();
 
 public:
-	ThinkerManager& getManager() const;
+	ThinkerManager& getManager () const;
 
 public:
-	bool wasPauseRequested(unsigned long time = 0) const;
+	bool wasPauseRequested ( unsigned long time = 0 ) const;
 
 // If exceptions are enabled, you can use this and it will throw an exception to the
 // internal thread loop boilerplate on a pause request; only appropriate for
 // non-continuable thinkers to use...
 #ifndef Q_NO_EXCEPTIONS
-	void pollForStopException(unsigned long time = 0) const;
+	void pollForStopException ( unsigned long time = 0 ) const;
 #endif
 
 friend class ThinkerPresentBase;
 
 public:
-	virtual void afterThreadAttach();
-	virtual void beforeThreadDetach();
+	virtual void afterThreadAttach ();
+	virtual void beforeThreadDetach ();
 
 friend class ThinkerRunner;
 template< class ThinkerType > friend class ThinkerHolder;
@@ -106,17 +95,19 @@ protected:
 	// These overrides provide added checking and also signal
 	// "progress" when the unlock runs.
 
-	/* virtual */ void lockForWrite(const codeplace& cp);
-	/* virtual */ void unlock(const codeplace& cp);
+	/* virtual */ void lockForWrite ( const codeplace& cp );
+	/* virtual */ void unlock ( const codeplace& cp );
+
 #ifndef THINKERQT_REQUIRE_CODEPLACE
 	// This will cause the any asserts to indicate a failure in thinker.h instead
 	// line instead of the offending line in the caller... not as good... see hoist
 	// documentation http://hostilefork.com/hoist/
-	void lockForWrite()
+	void lockForWrite ()
 	{
 		return lockForWrite(HERE);
 	}
-	void unlock()
+
+	void unlock ()
 	{
 		return unlock(HERE);
 	}
@@ -133,7 +124,7 @@ signals:
 	void done();
 
 private slots:
-	void onResumeThinking();
+	void onResumeThinking ();
 
 protected:
 	virtual void start() = 0;
@@ -147,8 +138,17 @@ protected:
 		hopefullyNotReached("This Thinker was not designed to be resumable.", HERE);
 	}
 
-public:
-	virtual ~ThinkerBase();
+private:
+	// It is the ThinkerManager's responsibility to do state bookkeeping
+	// Thus state changes *only on the manager's thread*
+
+	State state;
+	ThinkerManager& mgr;
+	QReadWriteLock watchersLock;
+	QSet<ThinkerPresentWatcherBase*> watchers;
+
+	friend class ThinkerManager;
+	friend class ThinkerPresentWatcherBase;
 };
 
 
@@ -186,34 +186,37 @@ public:
 			ThinkerPresentBase ()
 		{
 		}
-		Present (ThinkerPresentBase& base) :
+
+		Present ( ThinkerPresentBase& base ) :
 			ThinkerPresentBase (base)
 		{
 			static_cast<void>(cast_hopefully< Present* >(&base, HERE));
 		}
-		Present (const Present& other) :
+
+		Present ( const Present& other ) :
 			ThinkerPresentBase (other)
 		{
 		}
+
+		/* virtual */ ~Present ()
+		{
+		}
+
 	protected:
-		Present (ThinkerHolder< ThinkerBase > holder) :
+		Present ( ThinkerHolder< ThinkerBase > holder ) :
 			ThinkerPresentBase (holder)
 		{
 		}
 		friend class ThinkerManager;
+
 	public:
-		typename Thinker::SnapshotPointer createSnapshot() const
+		typename Thinker::SnapshotPointer createSnapshot () const
 		{
 			hopefullyCurrentThreadIsManager(HERE);
 			SnapshotPointerBase* allocatedSnapshot (createSnapshotBase());
 			SnapshotPointer result (*cast_hopefully< SnapshotPointer* >(allocatedSnapshot, HERE));
 			delete allocatedSnapshot;
 			return result;
-		}
-
-	public:
-		/* virtual */ ~Present()
-		{
 		}
 	};
 
@@ -225,12 +228,18 @@ public:
 			ThinkerPresentWatcherBase (present)
 		{
 		}
+
 		PresentWatcher () :
 			ThinkerPresentWatcherBase ()
 		{
 		}
+
+		~PresentWatcher ()
+		{
+		}
+
 	public:
-		typename Thinker::SnapshotPointer createSnapshot() const
+		typename Thinker::SnapshotPointer createSnapshot () const
 		{
 			hopefullyCurrentThreadIsManager(HERE);
 			SnapshotPointerBase* allocatedSnapshot (createSnapshotBase());
@@ -238,16 +247,15 @@ public:
 			delete allocatedSnapshot;
 			return result;
 		}
-		void setPresent(Present present)
+
+		void setPresent ( Present present )
 		{
 			setPresentBase(present);
 		}
-		Present present()
+
+		Present present ()
 		{
 			return Present (presentBase());
-		}
-		~PresentWatcher ()
-		{
 		}
 	};
 
@@ -256,23 +264,23 @@ public:
 	// require your state object to be default-constructible.  See notes in
 	// snapshottable about the other constructor variants.
 
-	Thinker (QSharedDataPointer< DataType > d) :
+	Thinker ( QSharedDataPointer< DataType > d ) :
 		ThinkerBase (),
 		Snapshottable< DataType > (d)
 	{
 	}
-	Thinker (ThinkerManager& mgr, QSharedDataPointer< DataType > d) :
+	Thinker ( ThinkerManager& mgr, QSharedDataPointer< DataType > d ) :
 		ThinkerBase (mgr),
 		Snapshottable< DataType > (d)
 	{
 	}
 
-	Thinker (const DataType &d) :
+	Thinker ( const DataType &d ) :
 		ThinkerBase (),
 		Snapshottable< DataType > (d)
 	{
 	}
-	Thinker (ThinkerManager& mgr, const DataType& d) :
+	Thinker ( ThinkerManager& mgr, const DataType& d ) :
 		ThinkerBase (mgr),
 		Snapshottable< DataType > (d)
 	{
@@ -283,9 +291,13 @@ public:
 		Snapshottable< DataType > ()
 	{
 	}
-	Thinker  (ThinkerManager& mgr) :
+	Thinker  ( ThinkerManager& mgr ) :
 		ThinkerBase (mgr),
 		Snapshottable< DataType > ()
+	{
+	}
+
+	/* virtual */ ~Thinker ()
 	{
 	}
 
@@ -294,7 +306,7 @@ private:
 	// thinker itself.
 
 	/*template< class T >*/ friend class Present;
-	SnapshotPointer makeSnapshot()
+	SnapshotPointer makeSnapshot ()
 	{
 		return Snapshottable< DataType >::makeSnapshot();
 	}
@@ -304,11 +316,11 @@ public:
 	// from Snapshottable, but want readable() and writable() to
 	// be public.
 
-	const DataTypeParam& readable(const codeplace& cp) const
+	const DataTypeParam& readable ( const codeplace& cp ) const
 	{
 		return Snapshottable< DataType >::readable(cp);
 	}
-	DataTypeParam& writable(const codeplace& cp)
+	DataTypeParam& writable ( const codeplace& cp )
 	{
 		return Snapshottable< DataType >::writable(cp);
 	}
@@ -316,20 +328,15 @@ public:
 	// This will cause the any asserts to indicate a failure in thinker.h instead
 	// line instead of the offending line in the caller... not as good... see hoist
 	// documentation http://hostilefork.com/hoist/
-	const DataTypeParam& readable() const
+	const DataTypeParam& readable () const
 	{
 		return readable(HERE);
 	}
-	DataTypeParam& writable()
+	DataTypeParam& writable ()
 	{
 		return writable(HERE);
 	}
 #endif
-
-public:
-	/* virtual */ ~Thinker ()
-	{
-	}
 };
 
 #endif

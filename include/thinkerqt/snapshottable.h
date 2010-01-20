@@ -88,14 +88,14 @@ public:
 
 class SnapshotPointerBase
 {
+public:
+	virtual void clear() = 0;
+	virtual const SnapshottableData* dataBase() const = 0;
+
 private:
 	// (...there should be a member put here...)
 	// QSharedDataPointer< Derived > d;
 	// (...in the Snapshot< Derived > template...)
-
-public:
-	virtual void clear() = 0;
-	virtual const SnapshottableData* dataBase() const = 0;
 };
 
 
@@ -116,12 +116,9 @@ public:
 
 class SnapshottableBase
 {
-protected:
-	mutable QReadWriteLock dLock;
-	tracked< bool > lockedForWrite;
-
 public:
 	SnapshottableBase ();
+	virtual ~SnapshottableBase ();
 
 public:
 	// createSnapshotBase returns a pointer to an allocated object
@@ -141,8 +138,9 @@ protected:
 	virtual void lockForWrite(const codeplace& cp);
 	virtual void unlock(const codeplace& cp);
 
-public:
-	virtual ~SnapshottableBase ();
+protected:
+	mutable QReadWriteLock dLock;
+	tracked< bool > lockedForWrite;
 };
 
 
@@ -169,33 +167,23 @@ class Snapshottable : virtual public SnapshottableBase
 public:
 	typedef DataTypeParam DataType;
 
-private:
-	// you must initialize this "d" variable in your constructor, and
-	// it is where you must put all of your state that you want to
-	// be visible outside of the Snapshottable type when a
-	// Snapshot is taken
-
-	QSharedDataPointer< DataType > d;
-
 public:
+	// SnapshotPointer follows the convention set up by QFuture and friends
+	// of sharing inside the type, as well as tolerating a default construction
+
 	class SnapshotPointer : public SnapshotPointerBase
 	{
-	private:
-		QSharedDataPointer< DataType > d;
-
-	friend class Snapshottable< DataType >;
-
-	// Following QFuture/etc. convention of sharing inside the type
-	// As well as tolerating default construction
 	public:
 		SnapshotPointer () :
 			d ()
 		{
 		}
+
 		SnapshotPointer (const SnapshotPointer& other) :
 			d (other.d)
 		{
 		}
+
 		SnapshotPointer& operator= (const SnapshotPointer & other)
 		{
 			if (this != &other) {
@@ -203,6 +191,11 @@ public:
 			}
 			return *this;
 		}
+
+		~SnapshotPointer ()
+		{
+		}
+
 	protected:
 		SnapshotPointer (QSharedDataPointer< DataType > initialD) :
 			d (initialD)
@@ -215,10 +208,12 @@ public:
 			hopefully(d != QSharedDataPointer< DataType >(), HERE);
 			return d.data();
 		}
+
 		const DataType* operator-> () const
 		{
 			return data();
 		}
+
 		void clear()
 		{
 			d = QSharedDataPointer< DataType >();
@@ -230,10 +225,9 @@ public:
 			return dynamic_cast< const SnapshottableData* >(data());
 		}
 
-	public:
-		~SnapshotPointer ()
-		{
-		}
+	private:
+		QSharedDataPointer< DataType > d;
+		friend class Snapshottable< DataType >;
 	};
 
 	// NOTE: you must initialize the DataType member in the Snapshottable
@@ -285,6 +279,10 @@ public:
 	{
 	}
 
+	/* virtual */ ~Snapshottable()
+	{
+	}
+
 public:
 	SnapshotPointer createSnapshot() const
 	{
@@ -322,10 +320,13 @@ protected:
 		return *d;
 	}
 
-public:
-	/* virtual */ ~Snapshottable()
-	{
-	}
+private:
+	// you must initialize this "d" variable in your constructor, and
+	// it is where you must put all of your state that you want to
+	// be visible outside of the Snapshottable type when a
+	// Snapshot is taken
+
+	QSharedDataPointer< DataType > d;
 };
 
 #endif

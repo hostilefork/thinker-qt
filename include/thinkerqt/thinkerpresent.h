@@ -43,36 +43,41 @@ class ThinkerManager;
 
 template< class ThinkerType >
 class ThinkerHolder : public QSharedPointer< ThinkerType > {
+public:
+	ThinkerHolder ( ThinkerType* thinker ) :
+		QSharedPointer< ThinkerType > (thinker, doDeleteLater)
+	{
+	}
+
+	ThinkerHolder () :
+		QSharedPointer< ThinkerType > ()
+	{
+	}
+
+	template< class T > ThinkerHolder(const ThinkerHolder< T > other) :
+		QSharedPointer< ThinkerType >(other)
+	{
+	}
+
+	ThinkerBase& getThinkerBase ()
+	{
+		return *cast_hopefully< ThinkerBase* >(this->data(), HERE);
+	}
+
+	ThinkerType& getThinker ()
+	{
+		return *this->data();
+	}
+
 private:
 	// Deleters are tough to do as friends because one needs to generally friend
 	// functions or classes within the smart pointer implementation.
-	static void doDeleteLater(ThinkerType* thinker)
+	static void doDeleteLater ( ThinkerType* thinker )
 	{
 		if (thinker->thread() == QThread::currentThread())
 			delete thinker;
 		else
 			thinker->deleteLater();
-	}
-public:
-	ThinkerHolder (ThinkerType* thinker) :
-		QSharedPointer< ThinkerType > (thinker, doDeleteLater)
-	{
-	}
-	ThinkerHolder() :
-		QSharedPointer< ThinkerType > ()
-	{
-	}
-	template< class T > ThinkerHolder(const ThinkerHolder< T > other) :
-		QSharedPointer< ThinkerType >(other)
-	{
-	}
-	ThinkerBase& getThinkerBase()
-	{
-		return *cast_hopefully< ThinkerBase* >(this->data(), HERE);
-	}
-	ThinkerType& getThinker()
-	{
-		return *this->data();
 	}
 };
 
@@ -80,61 +85,53 @@ public:
 // ThinkerPresent
 //
 // When you ask the ThinkerManager to start running a thinker, it hands you
-// back a shared pointer to a ThinkerPresent object.  When your last shared
-// pointer to this object goes away, that is the indication that you want
-// the manager to abandon the Thinker.
-//
-// However, Thinkers run on their own threads and may not terminate
-// immediately.  If you have to do any bookkeeping at the moment a
-// ThinkerPresent is destroyed, make sure to put that in the
-// Thinker::beforePresentDetach method.
-//
+// back a ThinkerPresent object.  It is a lightweight reference counted class.
+// Following the convention of QFuture, when the last reference to the
+// ThinkerPresent goes away this does not implicitly cancel the Thinker;
 
 class ThinkerPresentBase
 {
-protected:
-	ThinkerHolder< ThinkerBase > holder;
-
 public:
 	// Following pattern set up by QtConcurrent's QFuture
 	// default construction yields an empty future that just thinks of itself as canceled
-	// lightweight reference counted class
 	ThinkerPresentBase ();
-	ThinkerPresentBase (const ThinkerPresentBase& other);
-	ThinkerPresentBase& operator= (const ThinkerPresentBase & other);
+	ThinkerPresentBase ( const ThinkerPresentBase& other );
+	ThinkerPresentBase& operator= ( const ThinkerPresentBase & other );
+	virtual ~ThinkerPresentBase ();
+
 protected:
-	ThinkerPresentBase (ThinkerHolder< ThinkerBase > holder);
+	ThinkerPresentBase ( ThinkerHolder< ThinkerBase > holder );
 	friend class ThinkerManager;
 
 public:
-	bool operator!= (const ThinkerPresentBase& other) const;
-	bool operator== (const ThinkerPresentBase& other) const;
+	bool operator!= ( const ThinkerPresentBase& other ) const;
+	bool operator== ( const ThinkerPresentBase& other ) const;
 
 protected:
-	bool hopefullyCurrentThreadIsManager(const codeplace& cp) const;
+	bool hopefullyCurrentThreadIsManager ( const codeplace& cp ) const;
 	friend class ThinkerPresentWatcherBase;
 
 protected:
 	// Is this a good idea to export in the API?
-	ThinkerBase& getThinkerBase();
-	const ThinkerBase& getThinkerBase() const;
+	ThinkerBase& getThinkerBase ();
+	const ThinkerBase& getThinkerBase () const;
 
 public:
 	// QFuture thinks of returning a list of results, whereas we snapshot
-	/* T result () const;
-	operator T () const; */
+	/* T result () const; */
+	/* operator T () const; */
+	/* T resultAt ( int index ) const; */
+	/* int resultCount () const; */
+	/* QList<T> results () const; */
+	/* bool isResultReadyAt ( int index ) const; */
 
-	SnapshotPointerBase* createSnapshotBase() const;
-
-	/* T resultAt ( int index ) const;
-	int resultCount () const;
-	QList<T> results () const;
-	bool isResultReadyAt ( int index ) const; */
+	SnapshotPointerBase* createSnapshotBase () const;
 
 public:
 	// The isStarted () method of QFuture isn't relevant to a Thinker
 	// It was "started" the moment it was created
-	// But everything else applies
+	// But everything else applies in this section
+
 	/* bool isStarted () const */
 
 	bool isCanceled () const;
@@ -153,13 +150,14 @@ public:
 public:
 	// TODO: Should Thinkers implement a progress API like QFuture?
 	// QFuture's does not apply to run() interfaces...
-	/* int progressMaximum () const;
-	int progressMinimum () const;
-	QString	progressText () const;
-	int progressValue () const; */
 
-public:
-	virtual ~ThinkerPresentBase();
+	/* int progressMaximum () const; */
+	/* int progressMinimum () const; */
+	/* QString progressText () const; */
+	/* int progressValue () const; */
+
+protected:
+	ThinkerHolder< ThinkerBase > holder;
 };
 
 #endif

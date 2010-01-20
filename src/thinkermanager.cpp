@@ -37,11 +37,11 @@ Q_GLOBAL_STATIC(ThinkerManager, theInstance)
 
 ThinkerManager::ThinkerManager () :
 	QObject (),
-	_anyThinkerWrittenThrottler (400)
+	anyThinkerWrittenThrottler (400)
 {
 	hopefullyCurrentThreadIsManager(HERE);
 
-	connect(&_anyThinkerWrittenThrottler, SIGNAL(throttled()), this, SIGNAL(anyThinkerWritten()), Qt::DirectConnection);
+	connect(&anyThinkerWrittenThrottler, SIGNAL(throttled()), this, SIGNAL(anyThinkerWritten()), Qt::DirectConnection);
 }
 
 ThinkerManager *ThinkerManager::globalInstance()
@@ -198,7 +198,7 @@ void ThinkerManager::unlockThinker(ThinkerBase& thinker)
 
 	// there is a notification throttler for all thinkers.  Review: should it be
 	// possible to have a separate notification for groups?
-	_anyThinkerWrittenThrottler.emitThrottled();
+	anyThinkerWrittenThrottler.emitThrottled();
 }
 
 ThinkerManager::~ThinkerManager()

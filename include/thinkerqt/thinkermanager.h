@@ -175,7 +175,7 @@ public slots:
 	void onRunnerFinished(ThinkerBase* thinker, bool canceled);
 
 private:
-	SignalThrottler _anyThinkerWrittenThrottler;
+	SignalThrottler anyThinkerWrittenThrottler;
 };
 
 #endif
