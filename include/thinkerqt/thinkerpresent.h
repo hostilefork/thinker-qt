@@ -59,12 +59,12 @@ public:
 	{
 	}
 
-	ThinkerBase& getThinkerBase ()
+	ThinkerBase& getThinkerBase()
 	{
 		return *cast_hopefully< ThinkerBase* >(this->data(), HERE);
 	}
 
-	ThinkerType& getThinker ()
+	ThinkerType& getThinker()
 	{
 		return *this->data();
 	}
@@ -72,7 +72,7 @@ public:
 private:
 	// Deleters are tough to do as friends because one needs to generally friend
 	// functions or classes within the smart pointer implementation.
-	static void doDeleteLater ( ThinkerType* thinker )
+	static void doDeleteLater(ThinkerType* thinker)
 	{
 		if (thinker->thread() == QThread::currentThread())
 			delete thinker;
@@ -128,16 +128,17 @@ public:
 	SnapshotPointerBase* createSnapshotBase() const;
 
 public:
-	// The isStarted () method of QFuture isn't relevant to a Thinker
-	// It was "started" the moment it was created
-	// But everything else applies in this section
+	// The isStarted() and isRunning() methods of QFuture are not
+	// exposed by the ThinkerPresent... essentially any Thinker that
+	// is not paused has been initialized with a shared data state
+	// and thus can be queried.
 
 	/* bool isStarted() const */
+	/* bool isRunning() const; */
 
 	bool isCanceled() const;
 	bool isFinished() const;
 	bool isPaused() const;
-	bool isRunning() const;
 
 	void cancel();
 	void pause();

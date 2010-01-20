@@ -72,9 +72,6 @@ public:
 	bool isPaused() const
 		{ return present.isPaused(); }
 
-	bool isRunning() const
-		{ return present.isRunning(); }
-
 public:
 	void cancel()
 		{ present.cancel(); }

@@ -75,13 +75,13 @@ ThinkerRunnerHelper::ThinkerRunnerHelper(ThinkerRunner& runner) :
 
 void ThinkerRunnerHelper::queuedQuit()
 {
-	runner.getManager().hopefullyCurrentThreadIsThinker(HERE);
+	hopefullyCurrentThreadIsRun(HERE);
 	runner.quit();
 }
 
 void ThinkerRunnerHelper::markFinished()
 {
-	runner.hopefullyCurrentThreadIsPooled(HERE);
+	hopefullyCurrentThreadIsRun(HERE);
 
 	runner.signalMutex.lock();
 	if (runner.state == ThinkerRunner::RunnerCanceling) {
@@ -98,7 +98,7 @@ void ThinkerRunnerHelper::markFinished()
 
 ThinkerRunnerHelper::~ThinkerRunnerHelper()
 {
-	runner.getManager().hopefullyCurrentThreadIsNotManager(HERE);
+	hopefullyCurrentThreadIsRun(HERE);
 }
 
 
@@ -110,7 +110,8 @@ ThinkerRunnerHelper::~ThinkerRunnerHelper()
 ThinkerRunner::ThinkerRunner(ThinkerHolder< ThinkerBase > holder) :
 	QEventLoop (),
 	state (RunnerInitializing, HERE),
-	holder (holder)
+	holder (holder),
+	helper ()
 {
 	hopefully(not holder.isNull(), HERE);
 
@@ -119,30 +120,23 @@ ThinkerRunner::ThinkerRunner(ThinkerHolder< ThinkerBase > holder) :
 	// is; we don't know until the Thread Pool decides to run this).  Must ask
 	// the manager thread because we can only push from a thread, not pull onto
 	// an arbitrary one...
-	getManager().hopefullyCurrentThreadIsManager(HERE);
+	hopefullyCurrentThreadIsManager(HERE);
 	hopefully(getThinker().thread() == QThread::currentThread(), HERE);
+	connect(this, SIGNAL(moveThinkerToThread(QThread*, QSemaphore*)),
+		this, SLOT(onMoveThinkerToThread(QThread*, QSemaphore*)), Qt::QueuedConnection);
 
 	connect(this, SIGNAL(resumeThinking()), &getThinker(), SLOT(onResumeThinking()), Qt::QueuedConnection);
-
-	// TODO: The Thread object's affinity is the thread that created it.  This means that
-	// if you connect a signal to the QThread, it will not be executed in that separate
-	// thread of execution.  *HOWEVER* the "finished()" and "starting()" signals are
-	// emitted from its independent thread of execution.  This is to say that if you were
-	// to connect the thread's finished() signal to a slot on the thread, it would be
-	// a queued connection.
-	// I should research the handling of these signals, because right now they are
-	// queued -- which means as long as the worker thread is doing something (e.g.
-	// rendering, or regenerating decks) then the thread object will not be freed.
 	connect(this, SIGNAL(finished(ThinkerBase*, bool)), &getManager(), SLOT(onRunnerFinished(ThinkerBase*, bool)), Qt::QueuedConnection);
 }
 
-bool ThinkerRunner::hopefullyCurrentThreadIsPooled(const codeplace& cp) const {
-	// TODO should do a stronger check w/the manager to make sure that we not only
-	// are a thinker thread but the thinker thread currently running in the thread
-	// pool
-	return getManager().hopefullyCurrentThreadIsThinker(cp);
+bool ThinkerRunner::hopefullyCurrentThreadIsManager(const codeplace& cp) const {
+	return getManager().hopefullyCurrentThreadIsManager(cp);
 }
 
+bool ThinkerRunner::hopefullyCurrentThreadIsRun(const codeplace& cp) const {
+	hopefully(helper, cp);
+	return helper->hopefullyCurrentThreadIsRun(cp);
+}
 
 ThinkerManager& ThinkerRunner::getManager() const
 {
@@ -159,31 +153,21 @@ ThinkerBase& ThinkerRunner::getThinker() {
 
 void ThinkerRunner::onMoveThinkerToThread(QThread* thread, QSemaphore* numThreadsMoved)
 {
-	getManager().hopefullyCurrentThreadIsManager(HERE);
+	hopefullyCurrentThreadIsManager(HERE);
 	getThinker().moveToThread(thread);
 	numThreadsMoved->release(1); // bump threads moved count
 }
 
 void ThinkerRunner::run()
 {
-	tracked< bool > debugThinkerRunner_Run (false, HERE);
+	helper = QSharedPointer<ThinkerRunnerHelper> (new ThinkerRunnerHelper(*this));
 
-	if (debugThinkerRunner_Run) {
-		QString message;
-		QTextStream ts (&message);
-		ts << "entering ThinkerRunner::run() this = " << this;
-		chronicle(debugThinkerRunner_Run, message, HERE);
-	}
-
-	ThinkerRunnerHelper helper (*this);
-
-	connect(this, SIGNAL(moveThinkerToThread(QThread*, QSemaphore*)),
-		this, SLOT(onMoveThinkerToThread(QThread*, QSemaphore*)), Qt::QueuedConnection);
-
-	QThread* originalThinkerThread (getThinker().thread());
+	connect(this, SIGNAL(breakEventLoop()), helper.data(), SLOT(queuedQuit()), Qt::QueuedConnection);
+	connect(&getThinker(), SIGNAL(done()), helper.data(), SLOT(markFinished()), Qt::DirectConnection);
 
 	// Now that we know what thread the Thinker will be running on, we ask the
-	// main thread to push the Thinker onto our current thread
+	// main thread to push it onto our current thread allocated to us by the pool
+	QThread* originalThinkerThread (getThinker().thread());
 	if (true) {
 		QSemaphore numThreadsMoved (0); // number of threads moved to main starts at 0
 
@@ -193,32 +177,11 @@ void ThinkerRunner::run()
 		hopefully(getThinker().thread() == QThread::currentThread(), HERE);
 	}
 
-	// TODO: Tend to race condition when someone is enumerating the runners and tries to
-	// pause them all, but this addition happens during the enumeration, etc.
-
-	if (getThinker().state == ThinkerBase::ThinkerCanceled) {
+	if (not getManager().maybeAddToRunnerMap(*this)) {
 		state.hopefullyTransition(RunnerInitializing, RunnerCanceled, HERE);
 	} else {
-		mapped< const QThread*, ThinkerRunner* > mapThread (QThread::currentThread(), this, getManager().getThreadMapManager(), HERE);
-		mapped< const ThinkerBase*, ThinkerRunner* > mapThinker (&getThinker(), this, getManager().getRunnerMapManager(), HERE);
-
-		if (debugThinkerRunner_Run) {
-			QString message;
-			QTextStream ts (&message);
-			ts << "added to maps this = " << this;
-			chronicle(debugThinkerRunner_Run, message, HERE);
-		}
-
-		// The system notifies the thinker thread of its desire to interrupt processing in a
-		// cooperative multitasking fashion.  The thinker must poll isPauseRequested()
-		// periodically, and if it senses this it should return from whatever processing
-		// it is doing.
-
-		connect(this, SIGNAL(breakEventLoop()), &helper, SLOT(queuedQuit()), Qt::QueuedConnection);
-
 		// The thinker thread needs to run until either it has finished (which it indicates by
-		// emitting the thinkingFinished signal)... or until it is canceled by the system.
-		connect(&getThinker(), SIGNAL(done()), &helper, SLOT(markFinished()), Qt::DirectConnection);
+		// emitting the done() signal)... or until it is canceled by the system.
 
 		signalMutex.lock();
 		state.hopefullyTransition(RunnerInitializing, RunnerThinking, HERE);
@@ -236,8 +199,6 @@ void ThinkerRunner::run()
 
 		bool didCancelOrFinish (false);
 		while (not didCancelOrFinish) {
-
-			// there should be a startThinking() or continueThinking() message queued...
 
 #ifndef Q_NO_EXCEPTIONS
 			try {
@@ -303,6 +264,8 @@ void ThinkerRunner::run()
 		}
 
 		getThinker().beforeThreadDetach();
+
+		getManager().removeFromRunnerMap(*this);
 	}
 
 	// For symmetry in constructor/destructor threading, we push the Thinker back to the
@@ -321,18 +284,11 @@ void ThinkerRunner::run()
 		hopefullyNotReached(HERE);
 	}
 
-	if (debugThinkerRunner_Run) {
-		QString message;
-		QTextStream ts (&message);
-		ts << "exiting ThinkerRunner::run() this = " << this;
-		chronicle(debugThinkerRunner_Run, message, HERE);
-	}
-
 	// We should be cleaning up this object using auto-delete.
 	hopefully(autoDelete(), HERE);
 
-	// After this routine returns, the thread pool may well destroy the thread
-	// The helper and other thread-related objects must be cleaned up
+	// We no longer need the helper object
+	helper.clear();
 }
 
 void ThinkerRunner::requestPauseCore(bool isCanceledOkay, const codeplace& cp)
@@ -424,7 +380,7 @@ void ThinkerRunner::waitForCancel()
 
 void ThinkerRunner::requestResumeCore(bool isCanceledOkay, const codeplace& cp)
 {
-	getManager().hopefullyCurrentThreadIsManager(HERE);
+	hopefullyCurrentThreadIsManager(HERE);
 
 	waitForPauseCore(isCanceledOkay);
 
@@ -443,7 +399,7 @@ void ThinkerRunner::requestResumeCore(bool isCanceledOkay, const codeplace& cp)
 
 void ThinkerRunner::waitForResume(const codeplace&cp)
 {
-	getManager().hopefullyCurrentThreadIsManager(HERE);
+	hopefullyCurrentThreadIsManager(HERE);
 
 	signalMutex.lock();
 	if ((state == RunnerThinking) or (state == RunnerFinished)) {
@@ -458,7 +414,7 @@ void ThinkerRunner::waitForResume(const codeplace&cp)
 
 void ThinkerRunner::requestFinishAndWaitForFinish(const codeplace& cp)
 {
-	getManager().hopefullyCurrentThreadIsManager(HERE);
+	hopefullyCurrentThreadIsManager(HERE);
 
 	signalMutex.lock();
 	if (state == RunnerFinished) {
@@ -474,7 +430,7 @@ void ThinkerRunner::requestFinishAndWaitForFinish(const codeplace& cp)
 }
 
 bool ThinkerRunner::isFinished() const {
-	getManager().hopefullyCurrentThreadIsManager(HERE);
+	hopefullyCurrentThreadIsManager(HERE);
 
 	bool result (false);
 	signalMutex.lock();
@@ -501,7 +457,7 @@ bool ThinkerRunner::isFinished() const {
 }
 
 bool ThinkerRunner::isCanceled() const {
-	getManager().hopefullyCurrentThreadIsManager(HERE);
+	hopefullyCurrentThreadIsManager(HERE);
 
 	bool result (false);
 	signalMutex.lock();
@@ -511,7 +467,7 @@ bool ThinkerRunner::isCanceled() const {
 }
 
 bool ThinkerRunner::isPaused() const {
-	getManager().hopefullyCurrentThreadIsManager(HERE);
+	hopefullyCurrentThreadIsManager(HERE);
 
 	bool result (false);
 	signalMutex.lock();
@@ -526,7 +482,7 @@ bool ThinkerRunner::isPaused() const {
 
 bool ThinkerRunner::wasPauseRequested(unsigned long time) const
 {
-	hopefullyCurrentThreadIsPooled(HERE);
+	hopefullyCurrentThreadIsRun(HERE);
 
 	bool result (false);
 
@@ -566,4 +522,27 @@ ThinkerRunner::~ThinkerRunner()
 	getManager().hopefullyCurrentThreadIsNotManager(HERE);
 
 	state.hopefullyInSet(RunnerCanceled, RunnerFinished, HERE);
+}
+
+
+//
+// ThinkerRunnerKeepalive
+//
+
+ThinkerRunnerKeepalive::ThinkerRunnerKeepalive () :
+	QSharedPointer< ThinkerRunner* > ()
+{
+}
+
+ThinkerRunnerKeepalive::ThinkerRunnerKeepalive (ThinkerRunner& runner) :
+	QSharedPointer< ThinkerRunner* >(new ThinkerRunner* (&runner), deleteAndReleaseLock)
+{
+	// should have been locked by the map lookup routine
+	hopefully(not runner.getManager().mapsMutex.tryLock(), HERE);
+}
+
+void ThinkerRunnerKeepalive::deleteAndReleaseLock(ThinkerRunner** runnerPointer)
+{
+	(*runnerPointer)->getManager().mapsMutex.unlock();
+	delete runnerPointer;
 }

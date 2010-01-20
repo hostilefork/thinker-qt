@@ -47,6 +47,11 @@ public:
 	ThinkerRunnerHelper (ThinkerRunner& runner);
 	~ThinkerRunnerHelper ();
 
+public:
+	bool hopefullyCurrentThreadIsRun(const codeplace& cp) const
+	{
+		return hopefully(QThread::currentThread() == thread(), cp);
+	}
 public slots:
 	void markFinished();
 	void queuedQuit();
@@ -88,7 +93,8 @@ public slots:
 	void onMoveThinkerToThread(QThread* thread, QSemaphore* numThreadsMoved);
 
 public:
-	bool hopefullyCurrentThreadIsPooled(const codeplace& cp) const;
+	bool hopefullyCurrentThreadIsRun(const codeplace& cp) const;
+	bool hopefullyCurrentThreadIsManager(const codeplace& cp) const;
 
 signals:
 	void breakEventLoop();
@@ -161,10 +167,58 @@ private:
 	mutable QWaitCondition stateChangeSignal;
 	mutable QMutex signalMutex;
 	ThinkerHolder< ThinkerBase > holder;
+	QSharedPointer< ThinkerRunnerHelper > helper;
 
 	// http://www.learncpp.com/cpp-tutorial/93-overloading-the-io-operators/
 	friend QTextStream& operator<< (QTextStream& o, const State& state);
 	friend class ThinkerRunnerHelper;
+};
+
+//
+// ThinkerRunnerKeepalive
+//
+// An unfortunate aspect of using thread pools is that you cannot emit a signal from the
+// pooled thread to a managing thread which you then use to destroy the object.
+//
+// Here's why: Even if the very last line of
+// your QRunnable interface is  "emit deleteOkayNow()" the delete is not necessarily
+// okay unless you specifically wait for the thread pool to finish all of its tasks.
+//
+// You can use a QFuture and a QFutureWatcher and QtConcurrent::run() instead of
+// running from the thread pool but that adds overhead.  Instead we let the ThreadPool
+// take ownership of the ThinkerRunner and delete it for us, but we don't let the run()
+// function return until we're sure there are no ThinkerRunnerKeepalives outstanding.
+//
+
+class ThinkerRunnerKeepalive : protected QSharedPointer<ThinkerRunner*> {
+public:
+	ThinkerRunnerKeepalive ();
+	ThinkerRunnerKeepalive (ThinkerRunner& runner);
+	ThinkerRunnerKeepalive (const ThinkerRunnerKeepalive& other)  :
+		QSharedPointer< ThinkerRunner* >(other)
+	{
+	}
+	ThinkerRunnerKeepalive& operator= (const ThinkerRunnerKeepalive& other)
+	{
+		if (&other == this)
+			return *this;
+      		static_cast< QSharedPointer< ThinkerRunner* >& >(*this) = static_cast< const QSharedPointer< ThinkerRunner* >& >(other);
+		return *this;
+	}
+	bool isNull() const
+	{
+		return QSharedPointer<ThinkerRunner*>::isNull();
+	}
+	ThinkerRunner& getRunner() const
+	{
+		return **data();
+	}
+	ThinkerRunner* operator-> ()
+	{
+		return *data();
+	}
+private:
+	static void deleteAndReleaseLock(ThinkerRunner** runnerPointer);
 };
 
 #endif

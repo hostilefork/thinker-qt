@@ -61,7 +61,7 @@ ThinkerPresentBase& ThinkerPresentBase::operator= (const ThinkerPresentBase & ot
 
 bool ThinkerPresentBase::hopefullyCurrentThreadIsManager(const codeplace& cp) const
 {
-	return holder->getManager().hopefullyCurrentThreadIsManager(cp);
+	return holder.isNull() ? true : holder->getManager().hopefullyCurrentThreadIsManager(cp);
 }
 
 ThinkerBase& ThinkerPresentBase::getThinkerBase() {
@@ -74,76 +74,138 @@ const ThinkerBase& ThinkerPresentBase::getThinkerBase() const {
 	return *holder.data();
 }
 
-bool ThinkerPresentBase::isCanceled () const
+bool ThinkerPresentBase::isCanceled() const
 {
-	// TODO: implement
-	return false;
+	hopefullyCurrentThreadIsManager(HERE);
+
+	if (holder.isNull())
+		return true;
+
+	const ThinkerBase& thinker (getThinkerBase());
+	ThinkerRunnerKeepalive runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
+	bool result = false;
+	if (runner.isNull()) {
+		result = (thinker.state == ThinkerBase::ThinkerCanceled);
+	} else {
+		result = runner->isCanceled();
+	}
+	return result;
 }
 
-bool ThinkerPresentBase::isFinished () const
+bool ThinkerPresentBase::isFinished() const
 {
-	// TODO: implement
-	return false;
+	hopefullyCurrentThreadIsManager(HERE);
+
+	if (holder.isNull())
+		return false;
+
+	const ThinkerBase& thinker (getThinkerBase());
+	ThinkerRunnerKeepalive runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
+	bool result = false;
+	if (runner.isNull()) {
+		result = (thinker.state == ThinkerBase::ThinkerFinished);
+	} else {
+		result = runner->isFinished();
+	}
+	return result;
 }
 
-bool ThinkerPresentBase::isPaused () const
+bool ThinkerPresentBase::isPaused() const
 {
-	// TODO: implement
-	return false;
+	hopefullyCurrentThreadIsManager(HERE);
+
+	if (holder.isNull())
+		return false;
+
+	const ThinkerBase& thinker (getThinkerBase());
+	ThinkerRunnerKeepalive runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
+	bool result = false;
+	if (runner.isNull()) {
+		result = (thinker.state == ThinkerBase::ThinkerPaused);
+	} else {
+		result = runner->isPaused();
+	}
+	return result;
 }
 
-bool ThinkerPresentBase::isRunning () const
+void ThinkerPresentBase::cancel()
 {
-	// TODO: implement
-	return false;
-}
+	hopefullyCurrentThreadIsManager(HERE);
 
-void ThinkerPresentBase::cancel ()
-{
 	// See QFuture for precedent... you can call cancel() on a default constructed
 	// QFuture object and it's a no-op
 	if (holder.isNull())
 		return;
 
 	ThinkerBase& thinker (getThinkerBase());
-
-	ThinkerRunner* runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
-	if (runner != NULL) {
+	ThinkerRunnerKeepalive runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
+	if (runner.isNull()) {
+		thinker.state = ThinkerBase::ThinkerCanceled;
+	} else {
 		// No need to enforceCancel at this point (which would cause a
 		// synchronous pause of the worker thread that we'd like to avoid)
 		// ...although unruly thinkers may seem to "leak" if they stall too
-		// long before responding to isPauseRequested() signals
-
-		// The bulkhead may have become invalidated which means it
-		// could already be aborted.
+		// long before responding to wasPauseRequested() signals
 		runner->requestCancelButAlreadyCanceledIsOkay(HERE);
-	} else {
-		thinker.state = ThinkerBase::ThinkerCanceled;
 	}
 }
 
-void ThinkerPresentBase::pause ()
+void ThinkerPresentBase::pause()
 {
-	// TODO: implement
+	hopefullyCurrentThreadIsManager(HERE);
+
+	hopefully(not holder.isNull(), HERE); // what would it mean to pause a null?  What's precedent in QFuture?
+
+	ThinkerBase& thinker (getThinkerBase());
+	ThinkerRunnerKeepalive runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
+	if (runner.isNull()) {
+		hopefully(thinker.state == ThinkerBase::ThinkerThinking, HERE);
+		thinker.state = ThinkerBase::ThinkerPaused;
+	} else {
+		// If there is a pause, we should probably stop update signals and queue a
+		// single update at the moment of resume
+		runner->requestPause(HERE);
+	}
 }
 
-void ThinkerPresentBase::resume ()
+void ThinkerPresentBase::resume()
 {
-	// TODO: implement
+	hopefullyCurrentThreadIsManager(HERE);
+
+	hopefully(not holder.isNull(), HERE); // what would it mean to pause a null?  What's precedent in QFuture?
+
+	ThinkerBase& thinker (getThinkerBase());
+	ThinkerRunnerKeepalive runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
+	if (runner.isNull()) {
+		hopefully(thinker.state == ThinkerBase::ThinkerPaused, HERE);
+		thinker.state = ThinkerBase::ThinkerThinking;
+	} else {
+		// If there is a pause, we should probably stop update signals and queue a
+		// single update at the moment of resume
+		runner->requestResume(HERE);
+	}
 }
 
-void ThinkerPresentBase::setPaused ( bool paused )
+void ThinkerPresentBase::setPaused(bool paused)
 {
-	// TODO: implement
+	if (paused)
+		resume();
+	else
+		pause();
 }
 
-void ThinkerPresentBase::togglePaused ()
+void ThinkerPresentBase::togglePaused()
 {
-	// TODO: implement
+	if (isPaused())
+		resume();
+	else
+		pause();
 }
 
-void ThinkerPresentBase::waitForFinished ()
+void ThinkerPresentBase::waitForFinished()
 {
+	hopefullyCurrentThreadIsManager(HERE);
+
 	// Following QFuture's lead in having a single waitForFinished that works
 	// for both canceled as well as non-canceled results.  They seem to throw an
 	// exception if the future had been paused...
@@ -151,8 +213,11 @@ void ThinkerPresentBase::waitForFinished ()
 
 	ThinkerBase& thinker (getThinkerBase());
 
-	ThinkerRunner* runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
-	if (runner != NULL) {
+	ThinkerRunnerKeepalive runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
+	if (runner.isNull()) {
+		// TODO: implement monitoring so we can tell when a runner
+		// for this thinker gets picked up.
+	} else {
 		if (runner->isCanceled())
 			runner->waitForCancel();
 		else
@@ -162,15 +227,13 @@ void ThinkerPresentBase::waitForFinished ()
 
 SnapshotPointerBase* ThinkerPresentBase::createSnapshotBase() const
 {
-	const ThinkerBase& thinker (getThinkerBase());
-
 	hopefullyCurrentThreadIsManager(HERE);
+
+	const ThinkerBase& thinker (getThinkerBase());
 	return static_cast< const SnapshottableBase* >(&thinker)->createSnapshotBase();
 }
 
 ThinkerPresentBase::~ThinkerPresentBase()
 {
-	// we leave wasAttachedToPresent as true here...
-	// it may still be running and we want readable()/writable() to still work
-	// from the thinker thread
+	hopefullyCurrentThreadIsManager(HERE);
 }

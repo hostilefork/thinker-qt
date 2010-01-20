@@ -60,6 +60,7 @@ class ThinkerBase : protected QObject, virtual public SnapshottableBase {
 private:
 	enum State {
 		ThinkerThinking,
+		ThinkerPaused,
 		ThinkerFinished,
 		ThinkerCanceled
 	};
@@ -90,6 +91,16 @@ public:
 
 friend class ThinkerRunner;
 template< class ThinkerType > friend class ThinkerHolder;
+
+public:
+	bool hopefullyCurrentThreadIsThink(const codeplace& cp) const
+	{
+		// we currently allow locking a thinker for writing
+		// on the manager thread between the time the
+		// Snapshot base class constructor has run
+		// and when it is attached to a ThinkerPresent
+		return hopefully(thread() == QThread::currentThread(), cp);
+	}
 
 protected:
 	// These overrides provide added checking and also signal
@@ -133,7 +144,7 @@ protected:
 		// Making a restartable thinker typically involves extra work to
 		// make it into a coroutine.  You don't have to do that work if
 		// you don't intend on pausing and restarting thinkers.  In that
-		// case, isPauseRequested really just means isStopRequested...
+		// case, wasPauseRequested really just means wasStopRequested...
 
 		hopefullyNotReached("This Thinker was not designed to be resumable.", HERE);
 	}

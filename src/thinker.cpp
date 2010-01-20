@@ -58,52 +58,52 @@ void ThinkerBase::beforeThreadDetach()
 
 void ThinkerBase::lockForWrite(const codeplace& cp)
 {
-	// we currently allow locking a thinker for writing
-	// on the manager thread between the time the
-	// Snapshot base class constructor has run
-	// and when it is attached to a ThinkerPresent
-	hopefully(thread() == QThread::currentThread(), HERE);
+	hopefullyCurrentThreadIsThink(HERE);
 
 	SnapshottableBase::lockForWrite(cp);
 }
 
 void ThinkerBase::unlock(const codeplace& cp)
 {
-	// we currently allow locking a thinker for writing
-	// on the manager thread between the time the
-	// Snapshot base class constructor has run
-	// and when it is attached to a ThinkerPresent
-	hopefully(thread() == QThread::currentThread(), HERE);
+	hopefullyCurrentThreadIsThink(HERE);
 
 	getManager().unlockThinker(*this);
 
 	SnapshottableBase::unlock(cp);
 }
+#include <QDebug>
 
 bool ThinkerBase::wasPauseRequested(unsigned long time) const
 {
-	ThinkerRunner* runner (getManager().maybeGetRunnerForThinker(*this));
-	runner->hopefullyCurrentThreadIsPooled(HERE);
+	hopefullyCurrentThreadIsThink(HERE);
+
+	ThinkerRunnerKeepalive runner (getManager().maybeGetRunnerForThinker(*this));
+	hopefully(not runner.isNull(), HERE);
 	return runner->wasPauseRequested(time);
 }
 
 #ifndef Q_NO_EXCEPTIONS
 void ThinkerBase::pollForStopException(unsigned long time) const
 {
-	ThinkerRunner* runner (getManager().maybeGetRunnerForThinker(*this));
-	runner->hopefullyCurrentThreadIsPooled(HERE);
+	hopefullyCurrentThreadIsThink(HERE);
+
+	ThinkerRunnerKeepalive runner (getManager().maybeGetRunnerForThinker(*this));
+	hopefully(not runner.isNull(), HERE);
 	runner->pollForStopException(time);
 }
 #endif
 
 void ThinkerBase::onResumeThinking()
 {
-	getManager().hopefullyCurrentThreadIsThinker(HERE);
+	hopefullyCurrentThreadIsThink(HERE);
+
+	ThinkerRunnerKeepalive runner (getManager().maybeGetRunnerForThinker(*this));
+	hopefully(not runner.isNull(), HERE);
 	resume();
 }
 
 ThinkerBase::~ThinkerBase ()
 {
 	getManager().hopefullyCurrentThreadIsManager(HERE);
-	hopefully(getManager().maybeGetRunnerForThinker(*this) == NULL, HERE);
+	hopefully(getManager().maybeGetRunnerForThinker(*this).isNull(), HERE);
 }

@@ -23,6 +23,7 @@
 #define THINKERQT__THINKERMANAGER_H
 
 #include <QThread>
+#include <QMutex>
 
 #include "defs.h"
 #include "thinker.h"
@@ -30,6 +31,8 @@
 
 class ThinkerRunner;
 class ThinkerRunnerHelper;
+class ThinkerRunnerKeepalive;
+
 
 //
 // ThinkerManager
@@ -44,11 +47,6 @@ class ThinkerRunnerHelper;
 class ThinkerManager : public QObject {
 	Q_OBJECT
 
-friend class ThinkerBase;
-friend class ThinkerRunner;
-friend class ThinkerRunnerHelper;
-friend class ThinkerPresentBase;
-
 public:
 	ThinkerManager ();
 	virtual ~ThinkerManager();
@@ -56,61 +54,22 @@ public:
 public:
 	static ThinkerManager* globalInstance();
 
-private:
-	bool hopefullyThreadIsManager(const QThread* thread, const codeplace& cp)
-	{
-		return hopefully(thread == this->thread(), cp);
-	}
-	bool hopefullyCurrentThreadIsManager(const codeplace& cp)
-	{
-		return hopefullyThreadIsManager(QThread::currentThread(), cp);
-	}
-	bool hopefullyThreadIsNotManager(const QThread* thread, const codeplace& cp)
-	{
-		return hopefully(thread != this->thread(), cp);
-	}
-	bool hopefullyCurrentThreadIsNotManager(const codeplace& cp)
-	{
-		return hopefullyThreadIsNotManager(QThread::currentThread(), cp);
-	}
-	bool hopefullyThreadIsThinker(const QThread* thread, const codeplace& cp)
-	{
-		return hopefully(maybeGetRunnerForThread(thread) != NULL, cp);
-	}
-	bool hopefullyCurrentThreadIsThinker(const codeplace& cp)
-	{
-		return hopefullyThreadIsThinker(QThread::currentThread(), cp);
-	}
-
-	// Runners are like "tasks".  There is not necessarily a one-to-one
-	// correspondence between Runners and threads.  So you must be
-	// careful not to assume that you can get a thread for a thinker.
-	//
-	// But somewhat tautologically, it is true that *if* thinker code is
-	// running, it will be doing so on a thread of execution.  So if you
-	// have a QThread which passes the cast to a ThinkerBase thread...
-	// then you may get the associated Thinker.
-private:
-	mapped< const QThread*, ThinkerRunner* >::manager threadMapManager;
-	mapped< const QThread*, ThinkerRunner* >::manager& getThreadMapManager()
-	{
-		return threadMapManager;
-	}
-private:
-	mapped< const ThinkerBase*, ThinkerRunner* >::manager runnerMapManager;
-	mapped< const ThinkerBase*, ThinkerRunner* >::manager& getRunnerMapManager()
-	{
-		return runnerMapManager;
-	}
-	ThinkerRunner* maybeGetRunnerForThinker(const ThinkerBase& thinker);
 public:
-	const ThinkerRunner* maybeGetRunnerForThread(const QThread* thread);
-	ThinkerBase& getThinkerForRunner(const ThinkerRunner* runner);
+	bool hopefullyThreadIsManager(const QThread& thread, const codeplace& cp);
+	bool hopefullyCurrentThreadIsManager(const codeplace& cp);
+	bool hopefullyThreadIsNotManager(const QThread& thread, const codeplace& cp);
+	bool hopefullyCurrentThreadIsNotManager(const codeplace& cp);
+	bool hopefullyThreadIsThinker(const QThread& thread, const codeplace& cp);
+	bool hopefullyCurrentThreadIsThinker(const codeplace& cp);
+
+public:
+	const ThinkerBase* maybeGetThinkerForThread(const QThread& thread);
 
 signals:
 	void anyThinkerWritten();
 protected:
 	void unlockThinker(ThinkerBase& thinker);
+	friend class ThinkerBase;
 
 private:
 	void createRunnerForThinker(ThinkerHolder< ThinkerBase > holder, const codeplace& cp);
@@ -170,12 +129,30 @@ public:
 	void ensureThinkerFinished(ThinkerBase& thinker);
 
 public slots:
-	// TODO: review implications of
-	// http://stackoverflow.com/questions/1351217/qthreadwait-and-qthreadfinished
 	void onRunnerFinished(ThinkerBase* thinker, bool canceled);
+
+public:
+	bool maybeAddToRunnerMap(ThinkerRunner& runner);
+	void removeFromRunnerMap(ThinkerRunner& runner);
+
+	// Runners are like "tasks".  There is not necessarily a one-to-one
+	// correspondence between Runners and thinkers.  So you must be
+	// careful not to assume that you can get a thread for a thinker.
+	//
+	// But somewhat tautologically, it is true that *if* thinker code is
+	// running, it will be doing so on a thread of execution.
+private:
+	ThinkerRunnerKeepalive maybeGetRunnerForThinker(const ThinkerBase& thinker);
+	ThinkerRunnerKeepalive maybeGetRunnerForThread(const QThread& thread);
+	friend class ThinkerPresentBase;
 
 private:
 	SignalThrottler anyThinkerWrittenThrottler;
+	QMutex mapsMutex;
+	QMap< const QThread*, ThinkerRunner* > threadMap;
+	QMap< const ThinkerBase*, ThinkerRunner* > thinkerMap;
+
+	friend class ThinkerRunnerKeepalive;
 };
 
 #endif
