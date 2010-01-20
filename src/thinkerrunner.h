@@ -44,12 +44,12 @@ private:
 	ThinkerRunner& runner;
 
 public:
-	ThinkerRunnerHelper(ThinkerRunner& runner);
-	~ThinkerRunnerHelper();
+	ThinkerRunnerHelper ( ThinkerRunner& runner );
+	~ThinkerRunnerHelper ();
 
 public slots:
-	void markFinished();
-	void queuedQuit();
+	void markFinished ();
+	void queuedQuit ();
 };
 
 class ThinkerRunner : public QEventLoop, public QRunnable
@@ -68,14 +68,92 @@ private:
 		RunnerFinished // => Canceled
 	};
 
-private:
+public:
+	ThinkerRunner ( ThinkerHolder< ThinkerBase > holder );
+	virtual ~ThinkerRunner ();
+
+public:
+	ThinkerManager& getManager () const;
+	ThinkerBase& getThinker ();
+	const ThinkerBase& getThinker () const;
+
+	// It used to be that Thinkers (QObjects) were created on the Manager thread and then pushed
+	// to a thread of their own during the Run.  Since Run now queues, that push is deferred.  We
+	// only know which thread the ThreadPool will put a Thinker onto when ThreadRunner::run()
+	// happens, so we make a moveThinkerToThread request from that
+signals:
+	void moveThinkerToThread ( QThread* thread, QSemaphore* numThreadsMoved );
+
+public slots:
+	void onMoveThinkerToThread ( QThread* thread, QSemaphore* numThreadsMoved );
+
+public:
+	bool hopefullyCurrentThreadIsPooled ( const codeplace& cp ) const;
+
+signals:
+	void breakEventLoop ();
+	void resumeThinking ();
+	void finished ( ThinkerBase* thinker, bool canceled );
+
+public:
+	void requestPause ( const codeplace& cp ) {
+		requestPauseCore(false, cp);
+	}
+	void waitForPause () {
+		waitForPauseCore(false);
+	}
+
+	void requestPauseButCanceledIsOkay ( const codeplace& cp ) {
+		requestPauseCore(true, cp);
+	}
+	void waitForPauseButCanceledIsOkay () {
+		waitForPauseCore(true);
+	}
+
+	void requestCancel ( const codeplace& cp ) {
+		requestCancelCore(false, cp);
+	}
+	void requestCancelButAlreadyCanceledIsOkay ( const codeplace& cp ) {
+		requestCancelCore(true, cp);
+	}
+
+	void waitForCancel (); // no variant because we can't distinguish between an abort we asked for and
+
+	void requestResume ( const codeplace& cp ) {
+		requestResumeCore(false, cp);
+	}
+	void requestResumeButCanceledIsOkay ( const codeplace& cp ) {
+		requestResumeCore(true, cp);
+	}
+	void waitForResume ( const codeplace& cp );
+
+	void requestFinishAndWaitForFinish ( const codeplace& cp );
+
+public:
+	bool isFinished () const;
+	bool isCanceled () const;
+	bool isPaused () const;
+	bool wasPauseRequested ( unsigned long time = 0 ) const;
+
 #ifndef Q_NO_EXCEPTIONS
+public:
+	void pollForStopException ( unsigned long time = 0 ) const;
+#endif
+
+protected:
+	void run ();
+
+private:
+	void requestPauseCore ( bool isCanceledOkay, const codeplace& cp );
+	void waitForPauseCore ( bool isCanceledOkay);
+	void requestCancelCore ( bool isAlreadyCanceledOkay, const codeplace& cp );
+	void requestResumeCore ( bool isCanceledOkay, const codeplace& cp );
+
+#ifndef Q_NO_EXCEPTIONS
+private:
 	class StopException {
 	};
 #endif
-
-// http://www.learncpp.com/cpp-tutorial/93-overloading-the-io-operators/
-friend QTextStream& operator << (QTextStream& o, const State& state);
 
 private:
 	tracked< State > state;
@@ -84,102 +162,9 @@ private:
 	mutable QMutex signalMutex;
 	ThinkerHolder< ThinkerBase > holder;
 
-friend class ThinkerRunnerHelper;
-
-public:
-	ThinkerManager& getManager() const;
-	ThinkerBase& getThinker();
-	const ThinkerBase& getThinker() const;
-
-	// It used to be that Thinkers (QObjects) were created on the Manager thread and then pushed
-	// to a thread of their own during the Run.  Since Run now queues, that push is deferred.  We
-	// only know which thread the ThreadPool will put a Thinker onto when ThreadRunner::run()
-	// happens, so we make a moveThinkerToThread request from that
-signals:
-	void moveThinkerToThread(QThread* thread, QSemaphore* numThreadsMoved);
-
-public slots:
-	void onMoveThinkerToThread(QThread* thread, QSemaphore* numThreadsMoved);
-
-public:
-	bool hopefullyCurrentThreadIsPooled(const codeplace& cp) const {
-		// TODO should do a stronger check w/the manager to make sure that we not only
-		// are a thinker thread but the thinker thread currently running in the thread
-		// pool
-		//return getManager().hopefullyCurrentThreadIsThinker(cp);
-		return true;
-	}
-	void setPriority(QThread::Priority priority) {
-		// stopgap routine.  For the moment let's not touch priorities.
-	}
-
-public:
-	ThinkerRunner (ThinkerHolder< ThinkerBase > holder);
-
-signals:
-	void breakEventLoop();
-	void startThinking();
-	void resumeThinking();
-	void attachingToThinker();
-	void detachingFromThinker();
-
-private:
-	void requestPauseCore(bool isCanceledOkay, const codeplace& cp);
-	void waitForPauseCore(bool isCanceledOkay);
-	void requestCancelCore(bool isAlreadyCanceledOkay, const codeplace& cp);
-	void requestResumeCore(bool isCanceledOkay, const codeplace& cp);
-
-public slots:
-	void requestPause(const codeplace& cp) {
-		requestPauseCore(false, cp);
-	}
-	void waitForPause() {
-		waitForPauseCore(false);
-	}
-
-	void requestPauseButCanceledIsOkay(const codeplace& cp) {
-		requestPauseCore(true, cp);
-	}
-	void waitForPauseButCanceledIsOkay() {
-		waitForPauseCore(true);
-	}
-
-	void requestCancel(const codeplace& cp) {
-		requestCancelCore(false, cp);
-	}
-	void requestCancelButAlreadyCanceledIsOkay(const codeplace& cp) {
-		requestCancelCore(true, cp);
-	}
-
-	void waitForCancel(); // no variant because we can't distinguish between an abort we asked for and
-
-	void requestResume(const codeplace& cp) {
-		requestResumeCore(false, cp);
-	}
-	void requestResumeButCanceledIsOkay(const codeplace& cp) {
-		requestResumeCore(true, cp);
-	}
-	void waitForResume(const codeplace& cp);
-
-	void requestFinishAndWaitForFinish(const codeplace& cp);
-
-public:
-	bool isFinished() const;
-	bool isCanceled() const;
-	bool isPaused() const;
-	bool wasPauseRequested(unsigned long time = 0) const;
-#ifndef Q_NO_EXCEPTIONS
-	void pollForStopException(unsigned long time = 0) const;
-#endif
-
-protected:
-	void run();
-
-signals:
-	void finished(ThinkerBase* thinker, bool canceled); // used to inherit from Thread
-
-public:
-	virtual ~ThinkerRunner();
+	// http://www.learncpp.com/cpp-tutorial/93-overloading-the-io-operators/
+	friend QTextStream& operator << (QTextStream& o, const State& state);
+	friend class ThinkerRunnerHelper;
 };
 
 #endif

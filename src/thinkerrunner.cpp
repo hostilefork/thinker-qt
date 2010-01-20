@@ -136,6 +136,14 @@ ThinkerRunner::ThinkerRunner(ThinkerHolder< ThinkerBase > holder) :
 	connect(this, SIGNAL(finished(ThinkerBase*, bool)), &getManager(), SLOT(onRunnerFinished(ThinkerBase*, bool)), Qt::QueuedConnection);
 }
 
+bool ThinkerRunner::hopefullyCurrentThreadIsPooled(const codeplace& cp) const {
+	// TODO should do a stronger check w/the manager to make sure that we not only
+	// are a thinker thread but the thinker thread currently running in the thread
+	// pool
+	return getManager().hopefullyCurrentThreadIsThinker(cp);
+}
+
+
 ThinkerManager& ThinkerRunner::getManager() const
 {
 	return getThinker().getManager();
@@ -336,7 +344,6 @@ void ThinkerRunner::requestPauseCore(bool isCanceledOkay, const codeplace& cp)
 	// going directly to paused or aborted, rather than pass through
 	// Thinking?  It might lower some latency.
 	if (state == RunnerInitializing) {
-		setPriority(QThread::NormalPriority); // raise it up if we slowed it down...
 		stateChangeSignal.wait(&signalMutex);
 	}
 	if (state == RunnerFinished) {
@@ -346,7 +353,6 @@ void ThinkerRunner::requestPauseCore(bool isCanceledOkay, const codeplace& cp)
 	} else {
 		state.hopefullyTransition(RunnerThinking, RunnerPausing, cp);
 		stateChangeSignal.wakeOne();
-		setPriority(QThread::LowPriority);
 
 		emit breakEventLoop();
 	}
@@ -363,12 +369,10 @@ void ThinkerRunner::waitForPauseCore(bool isCanceledOkay)
 	} else if (isCanceledOkay and (state == RunnerCanceled)) {
 		// do nothing
 	} else if (isCanceledOkay and (state == RunnerCanceling)) {
-		setPriority(QThread::NormalPriority);
 		stateChangeSignal.wait(&signalMutex);
 		state.hopefullyEqualTo(RunnerCanceled, HERE);
 	} else {
 		state.hopefullyEqualTo(RunnerPausing, HERE);
-		setPriority(QThread::NormalPriority); // raise it up if we slowed it down...
 		stateChangeSignal.wait(&signalMutex);
 		state.hopefullyInSet(RunnerPaused, RunnerFinished, HERE);
 	}
@@ -384,7 +388,6 @@ void ThinkerRunner::requestCancelCore(bool isCanceledOkay, const codeplace& cp)
 	// going directly to paused or aborted, rather than pass through
 	// Thinking?  It might lower some latency.
 	if (state == RunnerInitializing) {
-		setPriority(QThread::NormalPriority); // raise it up if we slowed it down...
 		stateChangeSignal.wait(&signalMutex);
 	}
 	if (state == RunnerFinished) {
@@ -401,7 +404,6 @@ void ThinkerRunner::requestCancelCore(bool isCanceledOkay, const codeplace& cp)
 		// so if it's not initializing and not finished it must be thinking!
 		state.hopefullyTransition(RunnerThinking, RunnerCanceling, cp);
 		stateChangeSignal.wakeOne();
-		setPriority(QThread::LowPriority);
 
 		emit breakEventLoop();
 	}
@@ -414,7 +416,6 @@ void ThinkerRunner::waitForCancel()
 
 	signalMutex.lock();
 	if (state == RunnerCanceling) {
-		setPriority(QThread::NormalPriority); // raise it up if we slowed it down...
 		stateChangeSignal.wait(&signalMutex);
 	}
 	state.hopefullyEqualTo(RunnerCanceled, HERE);
@@ -435,8 +436,6 @@ void ThinkerRunner::requestResumeCore(bool isCanceledOkay, const codeplace& cp)
 	} else {
 		state.hopefullyTransition(RunnerPaused, RunnerResuming, cp);
 		stateChangeSignal.wakeOne(); // only one person should be waiting on this, max...
-		/* hopefully(QThread::isRunning(), cp); */ // revisit
-		setPriority(QThread::NormalPriority);
 		emit resumeThinking();
 	}
 	signalMutex.unlock();
@@ -451,7 +450,6 @@ void ThinkerRunner::waitForResume(const codeplace&cp)
 		// do nothing
 	} else {
 		state.hopefullyEqualTo(RunnerResuming, HERE);
-		setPriority(QThread::NormalPriority); // raise it up if we slowed it down...
 		stateChangeSignal.wait(&signalMutex);
 		state.hopefullyInSet(RunnerResuming, RunnerThinking, RunnerFinished, HERE);
 	}
@@ -469,7 +467,6 @@ void ThinkerRunner::requestFinishAndWaitForFinish(const codeplace& cp)
 		// Caller should know if they paused the thinker, and resume it before
 		// calling this routine!
 		state.hopefullyEqualTo(RunnerThinking, HERE);
-		setPriority(QThread::NormalPriority); // raise it up if we slowed it down...
 		stateChangeSignal.wait(&signalMutex);
 		state.hopefullyEqualTo(RunnerFinished, HERE);
 	}
