@@ -19,6 +19,8 @@
 // See http://hostilefork.com/thinker-qt/ for more information on this project
 //
 
+#include <QMutexLocker>
+
 #include "thinkerrunner.h"
 #include "thinkerqt/thinkermanager.h"
 
@@ -31,8 +33,14 @@ inline QTextStream& operator << (QTextStream& o, const ThinkerRunner::State& sta
 {
 	o << "ThinkerRunner::";
 	switch (state) {
-	case ThinkerRunner::RunnerInitializing:
-		o << "RunnerInitializing";
+	case ThinkerRunner::RunnerQueued:
+		o << "RunnerQueued";
+		break;
+	case ThinkerRunner::RunnerQueuedButPaused:
+		o << "RunnerQueuedButPaused";
+		break;
+	case ThinkerRunner::RunnerThreadPush:
+		o << "RunnerThreadPush";
 		break;
 	case ThinkerRunner::RunnerThinking:
 		o << "RunnerThinking";
@@ -43,17 +51,17 @@ inline QTextStream& operator << (QTextStream& o, const ThinkerRunner::State& sta
 	case ThinkerRunner::RunnerPaused:
 		o << "RunnerPaused";
 		break;
-	case ThinkerRunner::RunnerCanceling:
-		o << "RunnerCanceling";
-		break;
-	case ThinkerRunner::RunnerCanceled:
-		o << "RunnerCanceled";
-		break;
 	case ThinkerRunner::RunnerResuming:
 		o << "RunnerResuming";
 		break;
 	case ThinkerRunner::RunnerFinished:
 		o << "RunnerFinished";
+		break;
+	case ThinkerRunner::RunnerCanceling:
+		o << "RunnerCanceling";
+		break;
+	case ThinkerRunner::RunnerCanceled:
+		o << "RunnerCanceled";
 		break;
 	default:
 		hopefullyNotReached(HERE);
@@ -83,7 +91,8 @@ void ThinkerRunnerHelper::markFinished()
 {
 	hopefullyCurrentThreadIsRun(HERE);
 
-	runner.signalMutex.lock();
+	QMutexLocker locker (&runner.signalMutex);
+
 	if (runner.state == ThinkerRunner::RunnerCanceling) {
 		// we don't let it transition to finished if abort is requested
 	} else {
@@ -92,8 +101,6 @@ void ThinkerRunnerHelper::markFinished()
 		runner.stateChangeSignal.wakeOne();
 		runner.quit();
 	}
-
-	runner.signalMutex.unlock();
 }
 
 ThinkerRunnerHelper::~ThinkerRunnerHelper()
@@ -109,7 +116,7 @@ ThinkerRunnerHelper::~ThinkerRunnerHelper()
 
 ThinkerRunner::ThinkerRunner(ThinkerHolder< ThinkerBase > holder) :
 	QEventLoop (),
-	state (RunnerInitializing, HERE),
+	state (RunnerQueued, HERE),
 	holder (holder),
 	helper ()
 {
@@ -122,11 +129,10 @@ ThinkerRunner::ThinkerRunner(ThinkerHolder< ThinkerBase > holder) :
 	// an arbitrary one...
 	hopefullyCurrentThreadIsManager(HERE);
 	hopefully(getThinker().thread() == QThread::currentThread(), HERE);
-	connect(this, SIGNAL(moveThinkerToThread(QThread*, QSemaphore*)),
-		this, SLOT(onMoveThinkerToThread(QThread*, QSemaphore*)), Qt::QueuedConnection);
+	connect(this, SIGNAL(moveThinkerToThread()),
+		this, SLOT(doThreadPushIfNecessary()), Qt::QueuedConnection);
 
 	connect(this, SIGNAL(resumeThinking()), &getThinker(), SLOT(onResumeThinking()), Qt::QueuedConnection);
-	connect(this, SIGNAL(finished(ThinkerBase*, bool)), &getManager(), SLOT(onRunnerFinished(ThinkerBase*, bool)), Qt::QueuedConnection);
 }
 
 bool ThinkerRunner::hopefullyCurrentThreadIsManager(const codeplace& cp) const {
@@ -151,45 +157,57 @@ ThinkerBase& ThinkerRunner::getThinker() {
 	return *holder.data();
 }
 
-void ThinkerRunner::onMoveThinkerToThread(QThread* thread, QSemaphore* numThreadsMoved)
+void ThinkerRunner::doThreadPushIfNecessary()
 {
 	hopefullyCurrentThreadIsManager(HERE);
-	getThinker().moveToThread(thread);
-	numThreadsMoved->release(1); // bump threads moved count
+
+	QMutexLocker locker (&signalMutex);
+	if (state == RunnerThreadPush) {
+		hopefully(helper, HERE);
+		getThinker().moveToThread(helper->thread());
+		state.hopefullyAlter(RunnerThinking, HERE);
+		stateChangeSignal.wakeOne();
+	}
 }
 
-void ThinkerRunner::run()
+bool ThinkerRunner::runThinker()
 {
 	helper = QSharedPointer<ThinkerRunnerHelper> (new ThinkerRunnerHelper(*this));
 
 	connect(this, SIGNAL(breakEventLoop()), helper.data(), SLOT(queuedQuit()), Qt::QueuedConnection);
 	connect(&getThinker(), SIGNAL(done()), helper.data(), SLOT(markFinished()), Qt::DirectConnection);
 
-	// Now that we know what thread the Thinker will be running on, we ask the
-	// main thread to push it onto our current thread allocated to us by the pool
-	QThread* originalThinkerThread (getThinker().thread());
-	if (true) {
-		QSemaphore numThreadsMoved (0); // number of threads moved to main starts at 0
+	signalMutex.lock();
 
-		emit moveThinkerToThread(QThread::currentThread(), &numThreadsMoved);
-		numThreadsMoved.acquire(); // blocks until the move bumps the semaphore
-
-		hopefully(getThinker().thread() == QThread::currentThread(), HERE);
+	if (state == RunnerQueuedButPaused) {
+		stateChangeSignal.wait(&signalMutex);
 	}
+	state.hopefullyInSet(RunnerQueued, RunnerCanceled, HERE);
 
-	if (not getManager().maybeAddToRunnerMap(*this)) {
-		state.hopefullyTransition(RunnerInitializing, RunnerCanceled, HERE);
-	} else {
-		// The thinker thread needs to run until either it has finished (which it indicates by
-		// emitting the done() signal)... or until it is canceled by the system.
-
-		signalMutex.lock();
-		state.hopefullyTransition(RunnerInitializing, RunnerThinking, HERE);
+	if (state != RunnerCanceled) {
+		QThread* originalThinkerThread (getThinker().thread());
+		// Now that we know what thread the Thinker will be running on, we ask the
+		// main thread to push it onto our current thread allocated to us by the pool
+		state.hopefullyAlter(RunnerThreadPush, HERE);
 		stateChangeSignal.wakeOne();
+		emit moveThinkerToThread();
+
+		// There are two places where the object will be pushed.  One is from the event
+		// loop if the signal happens.  But if before that can happen any of our code
+		// gets called from the manager thread then we'll preempt that.
+		stateChangeSignal.wait(&signalMutex);
+		state.hopefullyInSet(RunnerThinking, RunnerCanceling, HERE);
+		bool didCancelOrFinish (state == RunnerCanceling);
 		signalMutex.unlock();
 
+		hopefully(getThinker().thread() == QThread::currentThread(), HERE);
+
+		// TODO: will it be possible to use resumable coroutines so that an idle thinker
+		// which is waiting for a message could delegate some time to another thinker?
 		getThinker().afterThreadAttach();
-		// in theory the thread might be detached any time the event loop is paused/etc.
+
+		// The thinker thread needs to run until either it has finished (which it indicates by
+		// emitting the done() signal)... or until it is canceled by the system.
 
 		bool firstRun (true);
 
@@ -197,7 +215,6 @@ void ThinkerRunner::run()
 		bool possiblyAbleToContinue (false);
 #endif
 
-		bool didCancelOrFinish (false);
 		while (not didCancelOrFinish) {
 
 #ifndef Q_NO_EXCEPTIONS
@@ -265,44 +282,38 @@ void ThinkerRunner::run()
 
 		getThinker().beforeThreadDetach();
 
-		getManager().removeFromRunnerMap(*this);
+		// For symmetry in constructor/destructor threading, we push the Thinker back to the
+		// thread it was initially defined on.  This time we can do it directly instead of asking
+		// that thread to do it for us.
+		if (true) {
+			getThinker().moveToThread(originalThinkerThread);
+			hopefully(getThinker().thread() == originalThinkerThread, HERE);
+		}
+
+		signalMutex.lock();
 	}
 
-	// For symmetry in constructor/destructor threading, we push the Thinker back to the
-	// thread it was initially defined on.  This time we can do it directly instead of asking
-	// that thread to do it for us.
-	if (true) {
-		getThinker().moveToThread(originalThinkerThread);
-		hopefully(getThinker().thread() == originalThinkerThread, HERE);
-	}
-
-	if (state == RunnerCanceled) {
-		emit finished(&getThinker(), true);
-	} else if (state == RunnerFinished) {
-		emit finished(&getThinker(), false);
-	} else {
-		hopefullyNotReached(HERE);
-	}
-
-	// We should be cleaning up this object using auto-delete.
-	hopefully(autoDelete(), HERE);
+	state.hopefullyInSet(RunnerCanceled, RunnerCanceling, RunnerFinished, HERE);
+	bool wasCanceled (state != RunnerFinished);
+	signalMutex.unlock();
 
 	// We no longer need the helper object
 	helper.clear();
+
+	return wasCanceled;
 }
 
 void ThinkerRunner::requestPauseCore(bool isCanceledOkay, const codeplace& cp)
 {
-	getManager().hopefullyCurrentThreadIsManager(HERE);
+	hopefullyCurrentThreadIsManager(HERE);
+	doThreadPushIfNecessary();
 
-	signalMutex.lock();
-	// TODO: Should we introduce an Initializing transition that allows
-	// going directly to paused or aborted, rather than pass through
-	// Thinking?  It might lower some latency.
-	if (state == RunnerInitializing) {
-		stateChangeSignal.wait(&signalMutex);
-	}
-	if (state == RunnerFinished) {
+	QMutexLocker locker (&signalMutex);
+
+	if (state == RunnerQueued) {
+		state.hopefullyTransition(RunnerQueued, RunnerQueuedButPaused, HERE);
+		stateChangeSignal.wakeOne();
+	} else if (state == RunnerFinished) {
 		// do nothing
 	} else if (isCanceledOkay and ((state == RunnerCanceling) or (state == RunnerCanceled))) {
 		// do nothing
@@ -312,15 +323,16 @@ void ThinkerRunner::requestPauseCore(bool isCanceledOkay, const codeplace& cp)
 
 		emit breakEventLoop();
 	}
-	signalMutex.unlock();
 }
 
 void ThinkerRunner::waitForPauseCore(bool isCanceledOkay)
 {
-	getManager().hopefullyCurrentThreadIsManager(HERE);
+	hopefullyCurrentThreadIsManager(HERE);
+	doThreadPushIfNecessary();
 
-	signalMutex.lock();
-	if ((state == RunnerFinished) or (state == RunnerPaused)) {
+	QMutexLocker locker (&signalMutex);
+
+	if ((state == RunnerFinished) or (state == RunnerPaused) or (state == RunnerQueuedButPaused)) {
 		// do nothing
 	} else if (isCanceledOkay and (state == RunnerCanceled)) {
 		// do nothing
@@ -332,27 +344,19 @@ void ThinkerRunner::waitForPauseCore(bool isCanceledOkay)
 		stateChangeSignal.wait(&signalMutex);
 		state.hopefullyInSet(RunnerPaused, RunnerFinished, HERE);
 	}
-	signalMutex.unlock();
 }
 
 void ThinkerRunner::requestCancelCore(bool isCanceledOkay, const codeplace& cp)
 {
-	getManager().hopefullyCurrentThreadIsManager(HERE);
+	hopefullyCurrentThreadIsManager(HERE);
+	doThreadPushIfNecessary();
 
-	signalMutex.lock();
-	// TODO: Should we introduce an Initializing transition that allows
-	// going directly to paused or aborted, rather than pass through
-	// Thinking?  It might lower some latency.
-	if (state == RunnerInitializing) {
-		stateChangeSignal.wait(&signalMutex);
-	}
-	if (state == RunnerFinished) {
-		state.hopefullyTransition(RunnerFinished, RunnerCanceled, cp);
+	QMutexLocker locker (&signalMutex);
+
+	if ((state == RunnerQueued) || (state == RunnerFinished) || (state == RunnerPaused) || (state == RunnerQueuedButPaused)) {
+		state.hopefullyAlter(RunnerCanceled, cp);
 		stateChangeSignal.wakeOne();
-	} else if (state == RunnerPaused) {
-		state.hopefullyTransition(RunnerPaused, RunnerCanceled, cp);
-		stateChangeSignal.wakeOne();
-	} else if (isCanceledOkay and (state == RunnerCanceled)) {
+	} else if (isCanceledOkay and ((state == RunnerCanceled) || (state == RunnerCanceling))) {
 		// do nothing
 	} else {
 		// No one can request a pause or stop besides the worker
@@ -363,29 +367,21 @@ void ThinkerRunner::requestCancelCore(bool isCanceledOkay, const codeplace& cp)
 
 		emit breakEventLoop();
 	}
-	signalMutex.unlock();
-}
-
-void ThinkerRunner::waitForCancel()
-{
-	getManager().hopefullyCurrentThreadIsManager(HERE);
-
-	signalMutex.lock();
-	if (state == RunnerCanceling) {
-		stateChangeSignal.wait(&signalMutex);
-	}
-	state.hopefullyEqualTo(RunnerCanceled, HERE);
-	signalMutex.unlock();
 }
 
 void ThinkerRunner::requestResumeCore(bool isCanceledOkay, const codeplace& cp)
 {
 	hopefullyCurrentThreadIsManager(HERE);
+	doThreadPushIfNecessary();
 
 	waitForPauseCore(isCanceledOkay);
 
-	signalMutex.lock();
-	if (state == RunnerFinished) {
+	QMutexLocker locker (&signalMutex);
+
+	if (state == RunnerQueuedButPaused) {
+		state.hopefullyAlter(RunnerQueued, HERE);
+		stateChangeSignal.wakeOne();
+	} else if (state == RunnerFinished) {
 		// do nothing
 	} else if (isCanceledOkay and (state == RunnerCanceled)) {
 		// do nothing
@@ -394,48 +390,57 @@ void ThinkerRunner::requestResumeCore(bool isCanceledOkay, const codeplace& cp)
 		stateChangeSignal.wakeOne(); // only one person should be waiting on this, max...
 		emit resumeThinking();
 	}
-	signalMutex.unlock();
 }
 
 void ThinkerRunner::waitForResume(const codeplace&cp)
 {
 	hopefullyCurrentThreadIsManager(HERE);
+	doThreadPushIfNecessary();
 
-	signalMutex.lock();
-	if ((state == RunnerThinking) or (state == RunnerFinished)) {
+	QMutexLocker locker (&signalMutex);
+
+	if ((state == RunnerThinking) or (state == RunnerFinished) or (state == RunnerQueued)) {
 		// do nothing
 	} else {
 		state.hopefullyEqualTo(RunnerResuming, HERE);
 		stateChangeSignal.wait(&signalMutex);
 		state.hopefullyInSet(RunnerResuming, RunnerThinking, RunnerFinished, HERE);
 	}
-	signalMutex.unlock();
 }
 
-void ThinkerRunner::requestFinishAndWaitForFinish(const codeplace& cp)
+void ThinkerRunner::waitForFinished(const codeplace& cp)
 {
 	hopefullyCurrentThreadIsManager(HERE);
 
-	signalMutex.lock();
-	if (state == RunnerFinished) {
-		// do nothing
-	} else {
-		// Caller should know if they paused the thinker, and resume it before
-		// calling this routine!
-		state.hopefullyEqualTo(RunnerThinking, HERE);
+	QMutexLocker locker (&signalMutex);
+
+	if (state == RunnerQueued) {
 		stateChangeSignal.wait(&signalMutex);
-		state.hopefullyEqualTo(RunnerFinished, HERE);
+		state.hopefullyEqualTo(RunnerThreadPush, HERE);
 	}
-	signalMutex.unlock();
+
+	if (state == RunnerThreadPush) {
+		locker.unlock();
+		doThreadPushIfNecessary();
+		locker.relock();
+	}
+
+	// Caller should know if they paused the thinker, and resume it before
+	// calling this routine!
+	if (state == RunnerThinking)
+		stateChangeSignal.wait(&signalMutex);
+
+	state.hopefullyInSet(RunnerCanceled, RunnerFinished, HERE);
 }
 
 bool ThinkerRunner::isFinished() const {
 	hopefullyCurrentThreadIsManager(HERE);
 
+	QMutexLocker locker (&signalMutex);
+
 	bool result (false);
-	signalMutex.lock();
 	switch (state) {
-		case RunnerInitializing:
+		case RunnerQueued:
 		case RunnerThinking:
 		case RunnerPausing:
 		case RunnerPaused:
@@ -452,31 +457,26 @@ bool ThinkerRunner::isFinished() const {
 		default:
 			hopefullyNotReached(HERE);
 	}
-	signalMutex.unlock();
 	return result;
 }
 
 bool ThinkerRunner::isCanceled() const {
 	hopefullyCurrentThreadIsManager(HERE);
 
+	QMutexLocker locker (&signalMutex);
+
 	bool result (false);
-	signalMutex.lock();
 	result = (state == RunnerCanceled) or (state == RunnerCanceling);
-	signalMutex.unlock();
 	return result;
 }
 
 bool ThinkerRunner::isPaused() const {
 	hopefullyCurrentThreadIsManager(HERE);
 
+	QMutexLocker locker (&signalMutex);
+
 	bool result (false);
-	signalMutex.lock();
-	result = (state == RunnerPaused) or (state == RunnerPausing);
-	if (result) {
-		tracked< bool > debugPausedThinkers (true, HERE);
-		chronicle(debugPausedThinkers, "ThinkerBase was paused by " + state.whereLastAssigned().toString(), HERE);
-	}
-	signalMutex.unlock();
+	result = (state == RunnerPaused) or (state == RunnerPausing) or (state == RunnerQueuedButPaused);
 	return result;
 }
 
@@ -484,9 +484,9 @@ bool ThinkerRunner::wasPauseRequested(unsigned long time) const
 {
 	hopefullyCurrentThreadIsRun(HERE);
 
-	bool result (false);
+	QMutexLocker locker (&signalMutex);
 
-	signalMutex.lock();
+	bool result (false);
 	if ((state == RunnerPausing) or (state == RunnerCanceling)) {
 		result = true;
 	} else {
@@ -502,8 +502,6 @@ bool ThinkerRunner::wasPauseRequested(unsigned long time) const
 			result = didStateChange;
 		}
 	}
-	signalMutex.unlock();
-
 	return result;
 }
 
@@ -517,32 +515,38 @@ void ThinkerRunner::pollForStopException(unsigned long time) const
 
 ThinkerRunner::~ThinkerRunner()
 {
-	// Thread pool deletes this object.  There's no safe moment
-	// to delete it on the manager thread unless you have called waitForDone()
-	getManager().hopefullyCurrentThreadIsNotManager(HERE);
+	// The thread this is deleted on may be either the thread pool thread
+	// or the manager thread... it's controlled by a QSharedPointer
 
-	state.hopefullyInSet(RunnerCanceled, RunnerFinished, HERE);
+	state.hopefullyInSet(RunnerCanceled, RunnerCanceling, RunnerFinished, HERE);
 }
 
 
 //
-// ThinkerRunnerKeepalive
+// ThinkerRunnerProxy
 //
 
-ThinkerRunnerKeepalive::ThinkerRunnerKeepalive () :
-	QSharedPointer< ThinkerRunner* > ()
+ThinkerRunnerProxy::ThinkerRunnerProxy (QSharedPointer<ThinkerRunner> runner) :
+	runner (runner)
 {
+	getManager().addToThinkerMap(runner);
 }
 
-ThinkerRunnerKeepalive::ThinkerRunnerKeepalive (ThinkerRunner& runner) :
-	QSharedPointer< ThinkerRunner* >(new ThinkerRunner* (&runner), deleteAndReleaseLock)
-{
-	// should have been locked by the map lookup routine
-	hopefully(not runner.getManager().mapsMutex.tryLock(), HERE);
+ThinkerManager& ThinkerRunnerProxy::getManager() {
+	return runner->getManager();
 }
 
-void ThinkerRunnerKeepalive::deleteAndReleaseLock(ThinkerRunner** runnerPointer)
+void ThinkerRunnerProxy::run() {
+	getManager().addToThreadMap(runner, *QThread::currentThread());
+
+	bool wasCanceled (runner->runThinker());
+	getManager().removeFromThreadMap(runner, *QThread::currentThread());
+
+	getManager().removeFromThinkerMap(runner, wasCanceled);
+	// We should be cleaning up this object using auto-delete.
+	hopefully(autoDelete(), HERE);
+}
+
+ThinkerRunnerProxy::~ThinkerRunnerProxy ()
 {
-	(*runnerPointer)->getManager().mapsMutex.unlock();
-	delete runnerPointer;
 }

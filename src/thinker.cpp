@@ -29,7 +29,7 @@
 
 ThinkerBase::ThinkerBase (ThinkerManager& mgr) :
 	QObject (),
-	state (ThinkerThinking),
+	state (ThinkerOwnedByRunner),
 	mgr (mgr)
 {
 	getManager().hopefullyCurrentThreadIsManager(HERE);
@@ -37,7 +37,7 @@ ThinkerBase::ThinkerBase (ThinkerManager& mgr) :
 
 ThinkerBase::ThinkerBase () :
 	QObject (),
-	state (ThinkerThinking),
+	state (ThinkerOwnedByRunner),
 	mgr (*ThinkerManager::globalInstance())
 {
 	getManager().hopefullyCurrentThreadIsManager(HERE);
@@ -77,7 +77,7 @@ bool ThinkerBase::wasPauseRequested(unsigned long time) const
 {
 	hopefullyCurrentThreadIsThink(HERE);
 
-	ThinkerRunnerKeepalive runner (getManager().maybeGetRunnerForThinker(*this));
+	QSharedPointer<ThinkerRunner> runner (getManager().maybeGetRunnerForThinker(*this));
 	hopefully(not runner.isNull(), HERE);
 	return runner->wasPauseRequested(time);
 }
@@ -87,7 +87,7 @@ void ThinkerBase::pollForStopException(unsigned long time) const
 {
 	hopefullyCurrentThreadIsThink(HERE);
 
-	ThinkerRunnerKeepalive runner (getManager().maybeGetRunnerForThinker(*this));
+	QSharedPointer<ThinkerRunner> runner (getManager().maybeGetRunnerForThinker(*this));
 	hopefully(not runner.isNull(), HERE);
 	runner->pollForStopException(time);
 }
@@ -97,7 +97,7 @@ void ThinkerBase::onResumeThinking()
 {
 	hopefullyCurrentThreadIsThink(HERE);
 
-	ThinkerRunnerKeepalive runner (getManager().maybeGetRunnerForThinker(*this));
+	QSharedPointer<ThinkerRunner> runner (getManager().maybeGetRunnerForThinker(*this));
 	hopefully(not runner.isNull(), HERE);
 	resume();
 }

@@ -86,14 +86,15 @@ void ThinkerManager::createRunnerForThinker(ThinkerHolder< ThinkerBase > holder,
 	hopefullyCurrentThreadIsManager(cp);
 	hopefully(not holder.isNull(), cp);
 
-	ThinkerRunner* runner (new ThinkerRunner (holder));
+	QSharedPointer<ThinkerRunner> runner (new ThinkerRunner (holder));
+	ThinkerRunnerProxy* runnerProxy (new ThinkerRunnerProxy (runner));
 
 	// this may look like a bad idea because we are dynamically allocating and not hanging onto
 	// the result so we can free it.  but it's okay because ThinkerRunners maintain a global table
 	// which they insert themselves into on construction and delete themselves from during
 	// destruction.  Also, when the thread emits the finished signal, we clean it up using deleteLater
 	// (it is freed by the event loop when all events have been processed)
-	runner->setAutoDelete(true);
+	runnerProxy->setAutoDelete(true);
 
 	// QtConcurrent defines one global thread pool instance but maybe I'll let you specify your
 	// own, not sure if that's useful.  They make a lot of global assumptions, perhaps I should
@@ -101,7 +102,7 @@ void ThinkerManager::createRunnerForThinker(ThinkerHolder< ThinkerBase > holder,
 
 	// Queue this runnable thing to the thread pool.  It may take a while before
 	// a thread gets allocated to it.
-	static_cast<void>(QThreadPool::globalInstance()->start(runner));
+	static_cast<void>(QThreadPool::globalInstance()->start(runnerProxy));
 }
 
 void ThinkerManager::ensureThinkersPaused(const codeplace& cp)
@@ -109,14 +110,17 @@ void ThinkerManager::ensureThinkersPaused(const codeplace& cp)
 	hopefullyCurrentThreadIsManager(HERE);
 
 	QMutexLocker locker (&mapsMutex);
+	// we have to make a copy of the map
+	QMap< const ThinkerBase*, QSharedPointer< ThinkerRunner > > mapCopy (thinkerMap);
+	locker.unlock();
 
-	QMapIterator< const ThinkerBase*, ThinkerRunner* > i (thinkerMap);
+	QMapIterator< const ThinkerBase*, QSharedPointer< ThinkerRunner > > i (mapCopy);
 
 	// First pass: request all thinkers to pause (accept it if they are aborting, as they
 	// may be freed by the ThinkerPresent but not yet returned).
 	while (i.hasNext()) {
 		i.next();
-		ThinkerRunner* runner (i.value());
+		QSharedPointer< ThinkerRunner > runner (i.value());
 		runner->requestPauseButCanceledIsOkay(cp);
 	}
 
@@ -125,7 +129,7 @@ void ThinkerManager::ensureThinkersPaused(const codeplace& cp)
 	// Second pass: wait for all the thinkers to actually get their code off the stack.
 	while (i.hasNext()) {
 		i.next();
-		ThinkerRunner* runner (i.value());
+		QSharedPointer< ThinkerRunner > runner (i.value());
 		runner->waitForPauseButCanceledIsOkay();
 	}
 }
@@ -137,39 +141,34 @@ void ThinkerManager::ensureThinkersResumed(const codeplace& cp)
 	QMutexLocker locker (&mapsMutex);
 
 	// any thinkers that have not been aborted can be resumed
-	QMapIterator< const ThinkerBase*, ThinkerRunner* > i (thinkerMap);
+	QMapIterator< const ThinkerBase*, QSharedPointer< ThinkerRunner > > i (thinkerMap);
 	while (i.hasNext()) {
 		i.next();
-		ThinkerRunner* runner (i.value());
-		runner->requestResumeButCanceledIsOkay(cp);
+		QSharedPointer< ThinkerRunner > runner (i.value());
+		if (runner->isPaused())
+			runner->requestResumeButCanceledIsOkay(cp);
 	}
 }
 
-ThinkerRunnerKeepalive ThinkerManager::maybeGetRunnerForThread(const QThread& thread)
+QSharedPointer< ThinkerRunner > ThinkerManager::maybeGetRunnerForThread(const QThread& thread)
 {
-	mapsMutex.lock();
-	ThinkerRunner* result (threadMap.value(&thread, NULL));
-	if (result != NULL) {
-		return ThinkerRunnerKeepalive (*result); // leave mutex locked
-	}
-	return ThinkerRunnerKeepalive ();
+	QMutexLocker locker (&mapsMutex);
+	QSharedPointer< ThinkerRunner > result (threadMap.value(&thread, QSharedPointer< ThinkerRunner > ()));
+	return result;
 }
 
-ThinkerRunnerKeepalive ThinkerManager::maybeGetRunnerForThinker(const ThinkerBase& thinker)
+QSharedPointer< ThinkerRunner > ThinkerManager::maybeGetRunnerForThinker(const ThinkerBase& thinker)
 {
-	mapsMutex.lock();
-
-	QMap< const ThinkerBase*, ThinkerRunner* >::iterator i (thinkerMap.find(&thinker));
-	if (i != thinkerMap.end()) {
-		return ThinkerRunnerKeepalive (*i.value()); // leave mutex locked
-	}
-	mapsMutex.unlock();
-	return ThinkerRunnerKeepalive ();
+	QMutexLocker locker (&mapsMutex);
+	QSharedPointer< ThinkerRunner > result (thinkerMap.value(&thinker, QSharedPointer< ThinkerRunner > ()));
+	if (result.isNull())
+		hopefully((thinker.state == ThinkerBase::ThinkerCanceled) || (thinker.state == ThinkerBase::ThinkerFinished), HERE);
+	return result;
 }
 
 const ThinkerBase* ThinkerManager::maybeGetThinkerForThread(const QThread& thread)
 {
-	ThinkerRunnerKeepalive runner (maybeGetRunnerForThread(thread));
+	QSharedPointer< ThinkerRunner > runner (maybeGetRunnerForThread(thread));
 	if (runner.isNull()) {
 		return NULL;
 	}
@@ -178,16 +177,13 @@ const ThinkerBase* ThinkerManager::maybeGetThinkerForThread(const QThread& threa
 
 void ThinkerManager::requestAndWaitForCancelButAlreadyCanceledIsOkay(ThinkerBase& thinker)
 {
-	ThinkerRunnerKeepalive runner (maybeGetRunnerForThinker(thinker));
+	QSharedPointer< ThinkerRunner > runner (maybeGetRunnerForThinker(thinker));
 	if(runner.isNull()) {
 		thinker.state = ThinkerBase::ThinkerCanceled;
 	} else {
 		// thread should be paused or finished... or possibly aborted
 		runner->requestCancelButAlreadyCanceledIsOkay(HERE);
-		runner->waitForCancel();
-		// manager's responsibility to update the thinker's state, not directly sync'd to
-		// thread state (only when thread is terminated).
-		thinker.state = ThinkerBase::ThinkerCanceled;
+		runner->waitForFinished(HERE);
 	}
 	hopefully(thinker.state == ThinkerBase::ThinkerCanceled, HERE);
 }
@@ -196,34 +192,22 @@ void ThinkerManager::ensureThinkerFinished(ThinkerBase& thinker)
 {
 	hopefullyCurrentThreadIsManager(HERE);
 
-	if (thinker.state != ThinkerBase::ThinkerFinished) {
-		ThinkerRunnerKeepalive runner (maybeGetRunnerForThinker(thinker));
-		if (not runner.isNull()) {
-			hopefully(not runner->isCanceled(), HERE); // can't finish if it's aborted or invalid!
+	QSharedPointer< ThinkerRunner > runner (maybeGetRunnerForThinker(thinker));
+	if (not runner.isNull()) {
+		hopefully(not runner->isCanceled(), HERE); // can't finish if it's aborted or invalid!
 
-			// we need to watch the state changes and ensure that
-			// it completes... note user cancellation would mean that it
-			// would not so we have to allow for that case!
+		// we need to watch the state changes and ensure that
+		// it completes... note user cancellation would mean that it
+		// would not so we have to allow for that case!
+		if (runner->isPaused()) {
 			runner->requestResume(HERE);
 			runner->waitForResume(HERE);
-			runner->requestFinishAndWaitForFinish(HERE);
 		}
+
+		runner->waitForFinished(HERE);
 	}
 
-	hopefully(thinker.state != ThinkerBase::ThinkerCanceled, HERE); // can't finish if it's aborted or invalid!
-
-	if (false) {
-		// It would be nice if this completion signal could be true by the time we reach here
-		// unfortunately this is not set until the message loop runs... hmmm.
-
-		hopefully(thinker.state == ThinkerBase::ThinkerFinished, HERE);
-	}
-}
-
-void ThinkerManager::onRunnerFinished(ThinkerBase* thinker, bool canceled)
-{
-	hopefullyCurrentThreadIsManager(HERE);
-	thinker->state = canceled ? ThinkerBase::ThinkerCanceled : ThinkerBase::ThinkerFinished;
+	hopefully(thinker.state == ThinkerBase::ThinkerFinished, HERE);
 }
 
 void ThinkerManager::unlockThinker(ThinkerBase& thinker)
@@ -241,33 +225,38 @@ void ThinkerManager::unlockThinker(ThinkerBase& thinker)
 	anyThinkerWrittenThrottler.emitThrottled();
 }
 
-bool ThinkerManager::maybeAddToRunnerMap(ThinkerRunner& runner)
+void ThinkerManager::addToThinkerMap(QSharedPointer<ThinkerRunner> runner)
 {
 	// We use a mutex to guard the addition and removal of Runners to the maps
 	// If a Runner exists, then we look to its state information for cancellation--not
 	// the Thinker.
 
 	QMutexLocker locker (&mapsMutex);
-	ThinkerBase& thinker (runner.getThinker());
-	if (thinker.state == ThinkerBase::ThinkerCanceled) {
-		return false;
-	}
-
-	hopefully(not threadMap.contains(thinker.thread()), HERE);
-	threadMap.insert(thinker.thread(), &runner);
-
+	ThinkerBase& thinker (runner->getThinker());
 	hopefully(not thinkerMap.contains(&thinker), HERE);
-	thinkerMap.insert(&thinker, &runner);
-	return true;
+	thinkerMap.insert(&thinker, runner);
 }
 
-void ThinkerManager::removeFromRunnerMap(ThinkerRunner& runner)
+void ThinkerManager::removeFromThinkerMap(QSharedPointer<ThinkerRunner> runner, bool wasCanceled)
 {
 	QMutexLocker locker (&mapsMutex);
-	ThinkerBase& thinker (runner.getThinker());
-
-	hopefully(threadMap.remove(thinker.thread()) == 1, HERE);
+	ThinkerBase& thinker (runner->getThinker());
 	hopefully(thinkerMap.remove(&thinker) == 1, HERE);
+	hopefully(thinker.state == ThinkerBase::ThinkerOwnedByRunner, HERE);
+	thinker.state = wasCanceled ? ThinkerBase::ThinkerCanceled : ThinkerBase::ThinkerFinished;
+}
+
+void ThinkerManager::addToThreadMap(QSharedPointer<ThinkerRunner> runner, QThread& thread)
+{
+	QMutexLocker locker (&mapsMutex);
+	hopefully(not threadMap.contains(&thread), HERE);
+	threadMap.insert(&thread, runner);
+}
+
+void ThinkerManager::removeFromThreadMap(QSharedPointer<ThinkerRunner> runner, QThread& thread)
+{
+	QMutexLocker locker (&mapsMutex);
+	hopefully(threadMap.remove(&thread) == 1, HERE);
 }
 
 ThinkerManager::~ThinkerManager()
@@ -280,10 +269,10 @@ ThinkerManager::~ThinkerManager()
 
 	if (true) {
 		QMutexLocker locker (&mapsMutex);
-		QMapIterator< const ThinkerBase*, ThinkerRunner* > i (thinkerMap);
+		QMapIterator< const ThinkerBase*, QSharedPointer< ThinkerRunner > > i (thinkerMap);
 		while (i.hasNext()) {
 			i.next();
-			ThinkerRunner* runner (i.value());
+			QSharedPointer< ThinkerRunner > runner (i.value());
 			hopefully(runner->isCanceled() or runner->isFinished(), HERE);
 			anyRunners = true;
 		}

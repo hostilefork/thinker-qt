@@ -32,6 +32,7 @@
 
 class ThinkerRunner;
 class ThinkerManager;
+class ThinkerRunnerProxy;
 
 // pretty much every thread object needs a member who was
 // created in the thread's run() method, and thus dispatches
@@ -57,20 +58,22 @@ public slots:
 	void queuedQuit();
 };
 
-class ThinkerRunner : public QEventLoop, public QRunnable
+class ThinkerRunner : public QEventLoop
 {
 	Q_OBJECT
 
 private:
 	enum State {
-		RunnerInitializing, // => Thinking
+		RunnerQueued, // => ThreadPush
+		RunnerQueuedButPaused, // => Queued, Paused
+		RunnerThreadPush, // => Thinking
 		RunnerThinking, // => Pausing, Canceling, Finished
 		RunnerPausing, // => Paused
 		RunnerPaused, // => Canceled, Resuming
-		RunnerCanceling, // => Canceled
-		RunnerCanceled, // terminal
 		RunnerResuming, // => Thinking
-		RunnerFinished // => Canceled
+		RunnerFinished, // => Canceled
+		RunnerCanceling, // => Canceled
+		RunnerCanceled // terminal
 	};
 
 public:
@@ -87,10 +90,10 @@ public:
 	// only know which thread the ThreadPool will put a Thinker onto when ThreadRunner::run()
 	// happens, so we make a moveThinkerToThread request from that
 signals:
-	void moveThinkerToThread(QThread* thread, QSemaphore* numThreadsMoved);
+	void moveThinkerToThread();
 
-public slots:
-	void onMoveThinkerToThread(QThread* thread, QSemaphore* numThreadsMoved);
+protected slots:
+	void doThreadPushIfNecessary();
 
 public:
 	bool hopefullyCurrentThreadIsRun(const codeplace& cp) const;
@@ -99,7 +102,6 @@ public:
 signals:
 	void breakEventLoop();
 	void resumeThinking();
-	void finished(ThinkerBase* thinker, bool canceled);
 
 public:
 	void requestPause (const codeplace& cp) {
@@ -123,8 +125,6 @@ public:
 		requestCancelCore(true, cp);
 	}
 
-	void waitForCancel(); // no variant because we can't distinguish between an abort we asked for and
-
 	void requestResume(const codeplace& cp) {
 		requestResumeCore(false, cp);
 	}
@@ -133,7 +133,7 @@ public:
 	}
 	void waitForResume(const codeplace& cp);
 
-	void requestFinishAndWaitForFinish(const codeplace& cp);
+	void waitForFinished(const codeplace& cp);
 
 public:
 	bool isFinished() const;
@@ -147,7 +147,8 @@ public:
 #endif
 
 protected:
-	void run();
+	bool runThinker();
+	friend class ThinkerRunnerProxy;
 
 private:
 	void requestPauseCore(bool isCanceledOkay, const codeplace& cp);
@@ -175,7 +176,7 @@ private:
 };
 
 //
-// ThinkerRunnerKeepalive
+// ThinkerRunnerProxy
 //
 // An unfortunate aspect of using thread pools is that you cannot emit a signal from the
 // pooled thread to a managing thread which you then use to destroy the object.
@@ -184,41 +185,16 @@ private:
 // your QRunnable interface is  "emit deleteOkayNow()" the delete is not necessarily
 // okay unless you specifically wait for the thread pool to finish all of its tasks.
 //
-// You can use a QFuture and a QFutureWatcher and QtConcurrent::run() instead of
-// running from the thread pool but that adds overhead.  Instead we let the ThreadPool
-// take ownership of the ThinkerRunner and delete it for us, but we don't let the run()
-// function return until we're sure there are no ThinkerRunnerKeepalives outstanding.
-//
 
-class ThinkerRunnerKeepalive : protected QSharedPointer<ThinkerRunner*> {
+class ThinkerRunnerProxy : public QRunnable {
 public:
-	ThinkerRunnerKeepalive ();
-	ThinkerRunnerKeepalive (ThinkerRunner& runner);
-	ThinkerRunnerKeepalive (const ThinkerRunnerKeepalive& other)  :
-		QSharedPointer< ThinkerRunner* >(other)
-	{
-	}
-	ThinkerRunnerKeepalive& operator= (const ThinkerRunnerKeepalive& other)
-	{
-		if (&other == this)
-			return *this;
-      		static_cast< QSharedPointer< ThinkerRunner* >& >(*this) = static_cast< const QSharedPointer< ThinkerRunner* >& >(other);
-		return *this;
-	}
-	bool isNull() const
-	{
-		return QSharedPointer<ThinkerRunner*>::isNull();
-	}
-	ThinkerRunner& getRunner() const
-	{
-		return **data();
-	}
-	ThinkerRunner* operator-> ()
-	{
-		return *data();
-	}
+	ThinkerRunnerProxy (QSharedPointer<ThinkerRunner> runner);
+	ThinkerManager& getManager();
+	void run();
+	~ThinkerRunnerProxy ();
+
 private:
-	static void deleteAndReleaseLock(ThinkerRunner** runnerPointer);
+	QSharedPointer<ThinkerRunner> runner;
 };
 
 #endif

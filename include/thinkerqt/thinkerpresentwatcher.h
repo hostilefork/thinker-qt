@@ -72,7 +72,7 @@ public:
 	bool isPaused() const
 		{ return present.isPaused(); }
 
-public:
+public slots:
 	void cancel()
 		{ present.cancel(); }
 
@@ -88,6 +88,7 @@ public:
 	void togglePaused()
 		{ present.togglePaused(); }
 
+public:
 	void waitForFinished()
 		{ present.waitForFinished(); }
 

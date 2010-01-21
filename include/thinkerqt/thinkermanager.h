@@ -24,6 +24,7 @@
 
 #include <QThread>
 #include <QMutex>
+#include <QSemaphore>
 
 #include "defs.h"
 #include "thinker.h"
@@ -128,12 +129,11 @@ public:
 
 	void ensureThinkerFinished(ThinkerBase& thinker);
 
-public slots:
-	void onRunnerFinished(ThinkerBase* thinker, bool canceled);
-
 public:
-	bool maybeAddToRunnerMap(ThinkerRunner& runner);
-	void removeFromRunnerMap(ThinkerRunner& runner);
+	void addToThinkerMap(QSharedPointer<ThinkerRunner> runner);
+	void removeFromThinkerMap(QSharedPointer<ThinkerRunner> runner, bool wasCanceled);
+	void addToThreadMap(QSharedPointer<ThinkerRunner> runner, QThread& thread);
+	void removeFromThreadMap(QSharedPointer<ThinkerRunner> runner, QThread& thread);
 
 	// Runners are like "tasks".  There is not necessarily a one-to-one
 	// correspondence between Runners and thinkers.  So you must be
@@ -142,17 +142,15 @@ public:
 	// But somewhat tautologically, it is true that *if* thinker code is
 	// running, it will be doing so on a thread of execution.
 private:
-	ThinkerRunnerKeepalive maybeGetRunnerForThinker(const ThinkerBase& thinker);
-	ThinkerRunnerKeepalive maybeGetRunnerForThread(const QThread& thread);
+	QSharedPointer< ThinkerRunner > maybeGetRunnerForThinker(const ThinkerBase& thinker);
+	QSharedPointer< ThinkerRunner > maybeGetRunnerForThread(const QThread& thread);
 	friend class ThinkerPresentBase;
 
 private:
 	SignalThrottler anyThinkerWrittenThrottler;
 	QMutex mapsMutex;
-	QMap< const QThread*, ThinkerRunner* > threadMap;
-	QMap< const ThinkerBase*, ThinkerRunner* > thinkerMap;
-
-	friend class ThinkerRunnerKeepalive;
+	QMap< const QThread*, QSharedPointer< ThinkerRunner > > threadMap;
+	QMap< const ThinkerBase*, QSharedPointer< ThinkerRunner > > thinkerMap;
 };
 
 #endif

@@ -82,7 +82,7 @@ bool ThinkerPresentBase::isCanceled() const
 		return true;
 
 	const ThinkerBase& thinker (getThinkerBase());
-	ThinkerRunnerKeepalive runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
+	QSharedPointer<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
 	bool result = false;
 	if (runner.isNull()) {
 		result = (thinker.state == ThinkerBase::ThinkerCanceled);
@@ -100,7 +100,7 @@ bool ThinkerPresentBase::isFinished() const
 		return false;
 
 	const ThinkerBase& thinker (getThinkerBase());
-	ThinkerRunnerKeepalive runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
+	QSharedPointer<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
 	bool result = false;
 	if (runner.isNull()) {
 		result = (thinker.state == ThinkerBase::ThinkerFinished);
@@ -118,10 +118,10 @@ bool ThinkerPresentBase::isPaused() const
 		return false;
 
 	const ThinkerBase& thinker (getThinkerBase());
-	ThinkerRunnerKeepalive runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
+	QSharedPointer<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
 	bool result = false;
 	if (runner.isNull()) {
-		result = (thinker.state == ThinkerBase::ThinkerPaused);
+		// the thinker has either finished or been canceled
 	} else {
 		result = runner->isPaused();
 	}
@@ -138,7 +138,7 @@ void ThinkerPresentBase::cancel()
 		return;
 
 	ThinkerBase& thinker (getThinkerBase());
-	ThinkerRunnerKeepalive runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
+	QSharedPointer<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
 	if (runner.isNull()) {
 		thinker.state = ThinkerBase::ThinkerCanceled;
 	} else {
@@ -157,15 +157,12 @@ void ThinkerPresentBase::pause()
 	hopefully(not holder.isNull(), HERE); // what would it mean to pause a null?  What's precedent in QFuture?
 
 	ThinkerBase& thinker (getThinkerBase());
-	ThinkerRunnerKeepalive runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
-	if (runner.isNull()) {
-		hopefully(thinker.state == ThinkerBase::ThinkerThinking, HERE);
-		thinker.state = ThinkerBase::ThinkerPaused;
-	} else {
-		// If there is a pause, we should probably stop update signals and queue a
-		// single update at the moment of resume
-		runner->requestPause(HERE);
-	}
+	QSharedPointer<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
+	hopefully(not runner.isNull(), HERE); // you can't pause a thinker that's finished or canceled
+
+	// If there is a pause, we should probably stop update signals and queue a
+	// single update at the moment of resume
+	runner->requestPause(HERE);
 }
 
 void ThinkerPresentBase::resume()
@@ -175,15 +172,11 @@ void ThinkerPresentBase::resume()
 	hopefully(not holder.isNull(), HERE); // what would it mean to pause a null?  What's precedent in QFuture?
 
 	ThinkerBase& thinker (getThinkerBase());
-	ThinkerRunnerKeepalive runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
-	if (runner.isNull()) {
-		hopefully(thinker.state == ThinkerBase::ThinkerPaused, HERE);
-		thinker.state = ThinkerBase::ThinkerThinking;
-	} else {
-		// If there is a pause, we should probably stop update signals and queue a
-		// single update at the moment of resume
-		runner->requestResume(HERE);
-	}
+	QSharedPointer<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
+	hopefully(not runner.isNull(), HERE); // you cannot resume a thinker that has finished or canceled
+	// If there is a pause, we should probably stop update signals and queue a
+	// single update at the moment of resume
+	runner->requestResume(HERE);
 }
 
 void ThinkerPresentBase::setPaused(bool paused)
@@ -213,15 +206,11 @@ void ThinkerPresentBase::waitForFinished()
 
 	ThinkerBase& thinker (getThinkerBase());
 
-	ThinkerRunnerKeepalive runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
+	QSharedPointer<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
 	if (runner.isNull()) {
-		// TODO: implement monitoring so we can tell when a runner
-		// for this thinker gets picked up.
+		// has either finished or canceled
 	} else {
-		if (runner->isCanceled())
-			runner->waitForCancel();
-		else
-			runner->requestFinishAndWaitForFinish(HERE);
+		runner->waitForFinished(HERE);
 	}
 }
 

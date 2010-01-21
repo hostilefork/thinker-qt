@@ -59,10 +59,9 @@ class ThinkerBase : protected QObject, virtual public SnapshottableBase {
 
 private:
 	enum State {
-		ThinkerThinking,
-		ThinkerPaused,
-		ThinkerFinished,
-		ThinkerCanceled
+		ThinkerOwnedByRunner = 0,
+		ThinkerFinished = 1,
+		ThinkerCanceled = 2
 	};
 
 public:
@@ -150,9 +149,6 @@ protected:
 	}
 
 private:
-	// It is the ThinkerManager's responsibility to do state bookkeeping
-	// Thus state changes *only on the manager's thread*
-
 	State state;
 	ThinkerManager& mgr;
 	QReadWriteLock watchersLock;

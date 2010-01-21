@@ -130,8 +130,7 @@ public:
 public:
 	// The isStarted() and isRunning() methods of QFuture are not
 	// exposed by the ThinkerPresent... essentially any Thinker that
-	// is not paused has been initialized with a shared data state
-	// and thus can be queried.
+	// has been initialized with a shared data state and can be queried.
 
 	/* bool isStarted() const */
 	/* bool isRunning() const; */
