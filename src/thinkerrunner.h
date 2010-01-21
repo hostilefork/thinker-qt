@@ -85,14 +85,7 @@ public:
 	ThinkerBase& getThinker();
 	const ThinkerBase& getThinker() const;
 
-	// It used to be that Thinkers (QObjects) were created on the Manager thread and then pushed
-	// to a thread of their own during the Run.  Since Run now queues, that push is deferred.  We
-	// only know which thread the ThreadPool will put a Thinker onto when ThreadRunner::run()
-	// happens, so we make a moveThinkerToThread request from that
-signals:
-	void moveThinkerToThread();
-
-protected slots:
+public:
 	void doThreadPushIfNecessary();
 
 public:
@@ -165,8 +158,8 @@ private:
 private:
 	tracked< State > state;
 	// it's for communication between one manager and one thinker so use wakeOne()
-	mutable QWaitCondition stateChangeSignal;
-	mutable QMutex signalMutex;
+	mutable QWaitCondition stateWasChanged;
+	mutable QMutex stateMutex;
 	ThinkerHolder< ThinkerBase > holder;
 	QSharedPointer< ThinkerRunnerHelper > helper;
 

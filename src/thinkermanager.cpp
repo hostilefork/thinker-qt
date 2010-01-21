@@ -44,6 +44,9 @@ ThinkerManager::ThinkerManager () :
 	hopefullyCurrentThreadIsManager(HERE);
 
 	connect(&anyThinkerWrittenThrottler, SIGNAL(throttled()), this, SIGNAL(anyThinkerWritten()), Qt::DirectConnection);
+	connect(this, SIGNAL(pushToThreadMayBeNeeded()),
+		this, SLOT(doThreadPushesIfNecessary()), Qt::QueuedConnection);
+
 }
 
 bool ThinkerManager::hopefullyThreadIsManager(const QThread& thread, const codeplace& cp)
@@ -257,6 +260,42 @@ void ThinkerManager::removeFromThreadMap(QSharedPointer<ThinkerRunner> runner, Q
 {
 	QMutexLocker locker (&mapsMutex);
 	hopefully(threadMap.remove(&thread) == 1, HERE);
+}
+
+void ThinkerManager::waitForPushToThread(ThinkerRunner* runner)
+{
+	hopefullyCurrentThreadIsNotManager(HERE);
+
+	QMutexLocker locker (&pushThreadMutex);
+	runnerSetToPush.insert(runner);
+	threadsNeedPushing.wakeOne();
+	emit pushToThreadMayBeNeeded();
+	threadsWerePushed.wait(&pushThreadMutex);
+}
+
+void ThinkerManager::processThreadPushesUntil(ThinkerRunner* runner)
+{
+	hopefullyCurrentThreadIsManager(HERE);
+
+	QMutexLocker locker (&pushThreadMutex);
+	forever {
+		bool found = false;
+		foreach (ThinkerRunner* runnerToPush, runnerSetToPush) {
+     			runnerToPush->doThreadPushIfNecessary();
+			if ((NULL != runner) && (runnerToPush == runner))
+				found = true;
+		}
+		runnerSetToPush.clear();
+		threadsWerePushed.wakeAll();
+		if (found || runner == NULL)
+			return;
+		threadsNeedPushing.wait(&pushThreadMutex);
+	}
+}
+
+void ThinkerManager::doThreadPushesIfNecessary()
+{
+	processThreadPushesUntil(NULL);
 }
 
 ThinkerManager::~ThinkerManager()

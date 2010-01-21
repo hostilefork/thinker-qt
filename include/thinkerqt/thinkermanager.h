@@ -24,7 +24,7 @@
 
 #include <QThread>
 #include <QMutex>
-#include <QSemaphore>
+#include <QWaitCondition>
 
 #include "defs.h"
 #include "thinker.h"
@@ -65,6 +65,15 @@ public:
 
 public:
 	const ThinkerBase* maybeGetThinkerForThread(const QThread& thread);
+
+	// It used to be that Thinkers (QObjects) were created on the Manager thread and then pushed
+	// to a thread of their own during the Run.  Since Run now queues, that push is deferred.  We
+	// only know which thread the ThreadPool will put a Thinker onto when ThreadRunner::run()
+	// happens, so we make a moveThinkerToThread request from that
+signals:
+	void pushToThreadMayBeNeeded();
+private slots:
+	void doThreadPushesIfNecessary();
 
 signals:
 	void anyThinkerWritten();
@@ -130,6 +139,14 @@ public:
 	void ensureThinkerFinished(ThinkerBase& thinker);
 
 public:
+	void waitForPushToThread(ThinkerRunner* runner);
+	void processThreadPushesUntil(ThinkerRunner* runner);
+	void processThreadPushes()
+	{
+		processThreadPushesUntil(NULL);
+	}
+
+public:
 	void addToThinkerMap(QSharedPointer<ThinkerRunner> runner);
 	void removeFromThinkerMap(QSharedPointer<ThinkerRunner> runner, bool wasCanceled);
 	void addToThreadMap(QSharedPointer<ThinkerRunner> runner, QThread& thread);
@@ -151,6 +168,11 @@ private:
 	QMutex mapsMutex;
 	QMap< const QThread*, QSharedPointer< ThinkerRunner > > threadMap;
 	QMap< const ThinkerBase*, QSharedPointer< ThinkerRunner > > thinkerMap;
+
+	QMutex pushThreadMutex;
+	QWaitCondition threadsWerePushed;
+	QWaitCondition threadsNeedPushing;
+	QSet< ThinkerRunner* > runnerSetToPush;
 };
 
 #endif
