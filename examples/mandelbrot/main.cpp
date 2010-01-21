@@ -4,7 +4,7 @@
 ** All rights reserved.
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** This file is part of the examples of the Qt Toolkit.
+** Modified 2010 by HostileFork to use http://hostilefork.com/thinker-qt/
 **
 ** $QT_BEGIN_LICENSE:LGPL$
 ** No Commercial Usage

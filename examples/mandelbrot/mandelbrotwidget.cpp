@@ -4,7 +4,7 @@
 ** All rights reserved.
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** This file is part of the examples of the Qt Toolkit.
+** Modified 2010 by HostileFork to use http://hostilefork.com/thinker-qt/
 **
 ** $QT_BEGIN_LICENSE:LGPL$
 ** No Commercial Usage
@@ -54,15 +54,32 @@ MandelbrotWidget::MandelbrotWidget(QWidget *parent)
     pixmapScale = DefaultScale;
     curScale = DefaultScale;
 
-    qRegisterMetaType<QImage>("QImage");
-    connect(&thread, SIGNAL(renderedImage(const QImage &, double)),
-            this, SLOT(updatePixmap(const QImage &, double)));
+    for (int i = 0; i < ColormapSize; ++i)
+        colormap[i] = rgbFromWaveLength(380.0 + (i * 400.0 / ColormapSize));
+
+    connect(&watcher, SIGNAL(written()), this, SLOT(updatePixmap()));
+    watcher.setThrottleTime(400);
 
     setWindowTitle(tr("Mandelbrot"));
 #ifndef QT_NO_CURSOR
     setCursor(Qt::CrossCursor);
 #endif
     resize(550, 400);
+}
+
+MandelbrotWidget::~MandelbrotWidget()
+{
+    watcher.cancel();
+}
+
+void MandelbrotWidget::resetThinker(double centerX, double centerY,
+                double scaleFactor, QSize resultSize)
+{
+    watcher.cancel();
+
+    RenderThinker* thinker = new RenderThinker(centerX, centerY,
+                scaleFactor, resultSize, colormap);
+    watcher.setPresent(ThinkerQt::run(thinker));
 }
 
 void MandelbrotWidget::paintEvent(QPaintEvent * /* event */)
@@ -110,7 +127,7 @@ void MandelbrotWidget::paintEvent(QPaintEvent * /* event */)
 
 void MandelbrotWidget::resizeEvent(QResizeEvent * /* event */)
 {
-    thread.render(centerX, centerY, curScale, size());
+    resetThinker(centerX, centerY, curScale, size());
 }
 
 void MandelbrotWidget::keyPressEvent(QKeyEvent *event)
@@ -173,23 +190,27 @@ void MandelbrotWidget::mouseReleaseEvent(QMouseEvent *event)
     }
 }
 
-void MandelbrotWidget::updatePixmap(const QImage &image, double scaleFactor)
+void MandelbrotWidget::updatePixmap()
 {
     if (!lastDragPos.isNull())
         return;
 
-    pixmap = QPixmap::fromImage(image);
-    pixmapOffset = QPoint();
-    lastDragPos = QPoint();
-    pixmapScale = scaleFactor;
-    update();
+    RenderThinker::SnapshotPointer snap = watcher.createSnapshot();
+    if (snap->hasImage()) {
+        pixmap = QPixmap::fromImage(snap->getImage());
+        pixmapScale = snap->getScaleFactor();
+        snap.clear();
+        pixmapOffset = QPoint();
+        lastDragPos = QPoint();
+        update();
+    }
 }
 
 void MandelbrotWidget::zoom(double zoomFactor)
 {
     curScale *= zoomFactor;
     update();
-    thread.render(centerX, centerY, curScale, size());
+    resetThinker(centerX, centerY, curScale, size());
 }
 
 void MandelbrotWidget::scroll(int deltaX, int deltaY)
@@ -197,5 +218,42 @@ void MandelbrotWidget::scroll(int deltaX, int deltaY)
     centerX += deltaX * curScale;
     centerY += deltaY * curScale;
     update();
-    thread.render(centerX, centerY, curScale, size());
+    resetThinker(centerX, centerY, curScale, size());
+}
+
+uint MandelbrotWidget::rgbFromWaveLength(double wave)
+{
+    double r = 0.0;
+    double g = 0.0;
+    double b = 0.0;
+
+    if (wave >= 380.0 && wave <= 440.0) {
+        r = -1.0 * (wave - 440.0) / (440.0 - 380.0);
+        b = 1.0;
+    } else if (wave >= 440.0 && wave <= 490.0) {
+        g = (wave - 440.0) / (490.0 - 440.0);
+        b = 1.0;
+    } else if (wave >= 490.0 && wave <= 510.0) {
+        g = 1.0;
+        b = -1.0 * (wave - 510.0) / (510.0 - 490.0);
+    } else if (wave >= 510.0 && wave <= 580.0) {
+        r = (wave - 510.0) / (580.0 - 510.0);
+        g = 1.0;
+    } else if (wave >= 580.0 && wave <= 645.0) {
+        r = 1.0;
+        g = -1.0 * (wave - 645.0) / (645.0 - 580.0);
+    } else if (wave >= 645.0 && wave <= 780.0) {
+        r = 1.0;
+    }
+
+    double s = 1.0;
+    if (wave > 700.0)
+        s = 0.3 + 0.7 * (780.0 - wave) / (780.0 - 700.0);
+    else if (wave <  420.0)
+        s = 0.3 + 0.7 * (wave - 380.0) / (420.0 - 380.0);
+
+    r = pow(r * s, 0.8);
+    g = pow(g * s, 0.8);
+    b = pow(b * s, 0.8);
+    return qRgb(int(r * 255), int(g * 255), int(b * 255));
 }

@@ -4,7 +4,7 @@
 ** All rights reserved.
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** This file is part of the examples of the Qt Toolkit.
+** Modified 2010 by HostileFork to use http://hostilefork.com/thinker-qt/
 **
 ** $QT_BEGIN_LICENSE:LGPL$
 ** No Commercial Usage
@@ -37,6 +37,7 @@
 
 #include <QPixmap>
 #include <QWidget>
+#include "thinkerqt/thinkerqt.h"
 
 #include "renderthread.h"
 
@@ -46,6 +47,7 @@ class MandelbrotWidget : public QWidget
 
 public:
     MandelbrotWidget(QWidget *parent = 0);
+    ~MandelbrotWidget();
 
 protected:
     void paintEvent(QPaintEvent *event);
@@ -57,13 +59,17 @@ protected:
     void mouseReleaseEvent(QMouseEvent *event);
 
 private slots:
-    void updatePixmap(const QImage &image, double scaleFactor);
+    void updatePixmap(); /* makes snapshot to get image & scaleFactor */
 
 private:
     void zoom(double zoomFactor);
     void scroll(int deltaX, int deltaY);
+    uint rgbFromWaveLength(double wave);
 
-    RenderThread thread;
+    RenderThinker::PresentWatcher watcher;
+    void resetThinker(double centerX, double centerY, double scaleFactor,
+                QSize resultSize);
+
     QPixmap pixmap;
     QPoint pixmapOffset;
     QPoint lastDragPos;
@@ -71,6 +77,7 @@ private:
     double centerY;
     double pixmapScale;
     double curScale;
+    Colormap colormap;
 };
 
 #endif

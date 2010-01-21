@@ -4,7 +4,7 @@
 ** All rights reserved.
 ** Contact: Nokia Corporation (qt-info@nokia.com)
 **
-** This file is part of the examples of the Qt Toolkit.
+** Modified 2010 by HostileFork to use http://hostilefork.com/thinker-qt/
 **
 ** $QT_BEGIN_LICENSE:LGPL$
 ** No Commercial Usage
@@ -39,40 +39,54 @@
 #include <QSize>
 #include <QThread>
 #include <QWaitCondition>
+#include <QImage>
+#include "thinkerqt/thinkerqt.h"
 
-class QImage;
+class RenderThinker;
 
-class RenderThread : public QThread
+class RenderThinkerData : public SnapshottableData
+{
+private:
+    friend class RenderThinker;
+    QImage image;
+    double scaleFactor;
+
+public:
+    RenderThinkerData ()
+    { }
+
+    RenderThinkerData (const RenderThinkerData& other)
+        : image (other.image),
+        scaleFactor(other.scaleFactor)
+    { }
+
+    bool hasImage() const { return !image.isNull(); }
+
+    const QImage& getImage() const { return image; }
+
+    double getScaleFactor() const { return scaleFactor; }
+};
+
+const int ColormapSize = 512;
+typedef uint Colormap[ColormapSize];
+
+class RenderThinker : public Thinker<RenderThinkerData>
 {
     Q_OBJECT
 
 public:
-    RenderThread(QObject *parent = 0);
-    ~RenderThread();
-
-    void render(double centerX, double centerY, double scaleFactor,
-                QSize resultSize);
-
-signals:
-    void renderedImage(const QImage &image, double scaleFactor);
+    RenderThinker(double centerX, double centerY, double scaleFactor,
+                QSize resultSize, const Colormap& colormap);
 
 protected:
-    void run();
+    /* virtual*/ void start();
 
 private:
-    uint rgbFromWaveLength(double wave);
-
-    QMutex mutex;
-    QWaitCondition condition;
     double centerX;
     double centerY;
     double scaleFactor;
     QSize resultSize;
-    bool restart;
-    bool abort;
-
-    enum { ColormapSize = 512 };
-    uint colormap[ColormapSize];
+    const Colormap& colormap;
 };
 
 #endif
