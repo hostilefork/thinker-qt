@@ -48,19 +48,34 @@ struct codeplace
 #define HERE codeplace (__FILE__, __LINE__, __FUNCTION__)
 #define PLACE(str) HERE
 
+inline bool hopefullyNotReached(const char* message, const codeplace& cp)
+{
+	qt_assert_x(message, cp.function, cp.filename, cp.line);
+
+	// hoist encourages "ship what you test" and the hopefully functions do
+	// not disappear in the release build.  Yet they return a value which can
+	// be tested and error handling (if any) run.
+
+	// the nuances of when you are allowed to return false instead of halting the
+	// program here are something I need to write up better in the hoist docs, but
+	// this simple substitute header file doesn't have the tools to make that
+	// discernment (e.g. checking a web database or getting a passcode from
+	// a developer).
+
+	// So if you're in the debugger and want to continue, then skip this
+	// next call using set-next-statement
+
+	qFatal("%s in %s of %s, line %d", message, cp.function, cp.filename, cp.line);
+	return false;
+}
+
 inline bool hopefully(bool condition, const codeplace& cp)
 {
 	if (not condition) {
-		__assert_fail("assertion failure", cp.filename, cp.line, cp.function);
+		hopefullyNotReached("assertion failure", cp);
 		return false;
 	}
 	return true;
-}
-
-inline bool hopefullyNotReached(const char* message, const codeplace& cp)
-{
-	__assert_fail(message, cp.filename, cp.line, cp.function);
-	return false;
 }
 
 inline bool hopefullyNotReached(const codeplace& cp)

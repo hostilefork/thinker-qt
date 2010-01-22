@@ -27,6 +27,7 @@
 #include <QSemaphore>
 #include <QRunnable>
 #include <QEventLoop>
+#include <QTextStream>
 
 #include "thinkerqt/thinker.h"
 
