@@ -22,8 +22,6 @@
 #ifndef THINKERQT__HOISTSUBSTITUTE_H
 #define THINKERQT__HOISTSUBSTITUTE_H
 
-#include <cassert>
-
 // These definitions are stubs which let you build Thinker-Qt without hoist,
 // turning the hoist features into simple asserts
 //

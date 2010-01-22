@@ -57,6 +57,13 @@ class ThinkerBase : protected QObject, virtual public SnapshottableBase {
 	// it does not publicly inherit from QObject.
 	Q_OBJECT
 
+// REVIEW: This seems needed because of some strange sniffing that
+// The QSharedPointer ExternalRefCount class does of QObjects.  It caused
+// an error when using QSharedPointer with a class that had inherited from
+// QObject as protected in g++ 4.2.  The problem didn't seem to appear in
+// g++ 4.4.
+template< class T > friend class QtSharedPointer::ExternalRefCount;
+
 private:
 	enum State {
 		ThinkerOwnedByRunner = 0,
