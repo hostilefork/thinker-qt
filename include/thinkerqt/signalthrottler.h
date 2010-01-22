@@ -27,6 +27,7 @@
 #include <QAtomicInt>
 #include <QMutex>
 #include <QSharedPointer>
+#include <QThread>
 
 #include "defs.h"
 

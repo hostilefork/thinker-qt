@@ -25,6 +25,7 @@
 #include <QThread>
 #include <QMutex>
 #include <QWaitCondition>
+#include <QMap>
 
 #include "defs.h"
 #include "thinker.h"

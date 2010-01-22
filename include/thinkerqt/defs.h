@@ -24,7 +24,24 @@
 
 #include <QSharedPointer>
 
+
+#if THINKERQT_USE_HOIST
+
+// The hoist library is something that I use as an alternative system for reporting
+// locations in source to assertions.  The project page is here:
+//
+// http://hostilefork.com/hoist/
+//
+// You don't have to have it on your system in order to build Thinker-Qt.
 #include "hoist/hoist.h"
+
+#else
+
+// This is a small subset of definitions that substitute for hoist calls
+#include "hoistsubstitute.h"
+
+#endif
+
 using namespace hoist;
 
 #endif

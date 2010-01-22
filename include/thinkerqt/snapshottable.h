@@ -24,6 +24,7 @@
 
 #include <QSharedData>
 #include <QSharedDataPointer>
+#include <QReadWriteLock>
 
 #include "defs.h"
 
