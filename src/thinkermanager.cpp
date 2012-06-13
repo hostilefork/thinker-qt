@@ -256,7 +256,7 @@ void ThinkerManager::addToThreadMap(QSharedPointer<ThinkerRunner> runner, QThrea
 	threadMap.insert(&thread, runner);
 }
 
-void ThinkerManager::removeFromThreadMap(QSharedPointer<ThinkerRunner> runner, QThread& thread)
+void ThinkerManager::removeFromThreadMap(QSharedPointer<ThinkerRunner> /*runner*/, QThread& thread)
 {
 	QMutexLocker locker (&mapsMutex);
 	hopefully(threadMap.remove(&thread) == 1, HERE);

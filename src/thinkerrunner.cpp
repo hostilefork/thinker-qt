@@ -392,7 +392,7 @@ void ThinkerRunner::requestResumeCore(bool isCanceledOkay, const codeplace& cp)
 	}
 }
 
-void ThinkerRunner::waitForResume(const codeplace&cp)
+void ThinkerRunner::waitForResume(const codeplace& /*cp*/)
 {
 	hopefullyCurrentThreadIsManager(HERE);
 	getManager().processThreadPushes();
@@ -408,7 +408,7 @@ void ThinkerRunner::waitForResume(const codeplace&cp)
 	}
 }
 
-void ThinkerRunner::waitForFinished(const codeplace& cp)
+void ThinkerRunner::waitForFinished(const codeplace& /*cp*/)
 {
 	hopefullyCurrentThreadIsManager(HERE);
 

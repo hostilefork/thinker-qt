@@ -23,8 +23,8 @@
 
 SignalThrottler::SignalThrottler (unsigned int milliseconds, QObject* parent) :
 	QObject (parent),
-	timer (),
 	millisecondsDefault (cast_hopefully<int>(milliseconds, HERE)),
+    timer (),
 	timerMutex (NULL == parent ? new QMutex () : NULL)
 {
 	timer.setSingleShot(true);
