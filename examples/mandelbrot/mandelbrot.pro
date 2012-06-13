@@ -1,8 +1,27 @@
+THINKER_SRC = ../../src
+THINKER_INC = ../../include/thinkerqt
+
 HEADERS       = mandelbrotwidget.h \
                 renderthread.h
 SOURCES       = main.cpp \
                 mandelbrotwidget.cpp \
                 renderthread.cpp
+
+SOURCES     += $$THINKER_SRC/signalthrottler.cpp  \
+               $$THINKER_SRC/snapshottable.cpp \
+               $$THINKER_SRC/thinker.cpp \
+               $$THINKER_SRC/thinkermanager.cpp \
+               $$THINKER_SRC/thinkerpresent.cpp \
+               $$THINKER_SRC/thinkerpresentwatcher.cpp \
+               $$THINKER_SRC/thinkerrunner.cpp
+
+HEADERS     += $$THINKER_INC/signalthrottler.h \
+               $$THINKER_INC/thinker.h \
+               $$THINKER_INC/thinkermanager.h \
+               $$THINKER_INC/thinkerpresentwatcher.h \
+               $$THINKER_SRC/thinkerrunner.h
+
+INCLUDEPATH += ../../include
 
 unix:!mac:!symbian:!vxworks:LIBS += -lm
 
