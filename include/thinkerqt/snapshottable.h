@@ -198,7 +198,7 @@ public:
 		}
 
 	protected:
-		SnapshotPointer (QSharedDataPointer< DataType > initialD) :
+        SnapshotPointer (QSharedDataPointer<DataType> initialD) :
 			d (initialD)
 		{
 		}
@@ -206,7 +206,7 @@ public:
 	public:
 		const DataType* data() const
 		{
-			hopefully(d != QSharedDataPointer< DataType >(), HERE);
+            hopefully(d != QSharedDataPointer<DataType>(), HERE);
 			return d.data();
 		}
 
@@ -217,7 +217,7 @@ public:
 
 		void clear()
 		{
-			d = QSharedDataPointer< DataType >();
+            d = QSharedDataPointer<DataType> ();
 		}
 
 	protected:
@@ -227,8 +227,8 @@ public:
 		}
 
 	private:
-		QSharedDataPointer< DataType > d;
-		friend class Snapshottable< DataType >;
+        QSharedDataPointer<DataType> d;
+        friend class Snapshottable<DataType>;
 	};
 
 	// NOTE: you must initialize the DataType member in the Snapshottable
@@ -247,7 +247,7 @@ public:
 
 	Snapshottable () :
 		SnapshottableBase (),
-		d (QSharedDataPointer< DataType > (new DataType ()))
+        d (QSharedDataPointer<DataType> (new DataType ()))
 	{
 	}
 
@@ -261,7 +261,7 @@ public:
 
 	Snapshottable(const DataType& other) :
 		SnapshottableBase (),
-		d (QSharedDataPointer< DataType >(new DataType (other)))
+        d (QSharedDataPointer<DataType>(new DataType (other)))
 	{
 	}
 
@@ -274,7 +274,7 @@ public:
 	//
 	// ...although it is slightly verbose.
 
-	Snapshottable (QSharedDataPointer< DataType > d) :
+    Snapshottable (QSharedDataPointer<DataType> d) :
 		SnapshottableBase (),
 		d (d)
 	{
@@ -327,7 +327,7 @@ private:
 	// be visible outside of the Snapshottable type when a
 	// Snapshot is taken
 
-	QSharedDataPointer< DataType > d;
+    QSharedDataPointer<DataType> d;
 };
 
 #endif

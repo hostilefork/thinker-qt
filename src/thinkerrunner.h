@@ -157,12 +157,12 @@ private:
 #endif
 
 private:
-	tracked< State > state;
+    tracked<State> state;
 	// it's for communication between one manager and one thinker so use wakeOne()
 	mutable QWaitCondition stateWasChanged;
 	mutable QMutex stateMutex;
-	ThinkerHolder< ThinkerBase > holder;
-	QSharedPointer< ThinkerRunnerHelper > helper;
+    ThinkerHolder<ThinkerBase> holder;
+    QSharedPointer<ThinkerRunnerHelper> helper;
 
 	// http://www.learncpp.com/cpp-tutorial/93-overloading-the-io-operators/
 	friend QTextStream& operator<< (QTextStream& o, const State& state);

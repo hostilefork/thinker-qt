@@ -27,7 +27,7 @@
 
 namespace ThinkerQt {
 
-template< class ThinkerType >
+template<class ThinkerType>
 typename ThinkerType::Present run(ThinkerType* thinker)
 {
 	return ThinkerManager::globalInstance()->run(thinker);

@@ -41,27 +41,27 @@ class ThinkerManager;
 // This uses a custom deleter to ensure that we call QObject::deleteLater
 // http://doc.trolltech.com/4.5/qsharedpointer.html#QSharedPointer-3
 
-template< class ThinkerType >
-class ThinkerHolder : public QSharedPointer< ThinkerType > {
+template<class ThinkerType>
+class ThinkerHolder : public QSharedPointer<ThinkerType> {
 public:
-	ThinkerHolder ( ThinkerType* thinker ) :
-		QSharedPointer< ThinkerType > (thinker, doDeleteLater)
+    ThinkerHolder (ThinkerType* thinker) :
+        QSharedPointer<ThinkerType> (thinker, doDeleteLater)
 	{
 	}
 
 	ThinkerHolder () :
-		QSharedPointer< ThinkerType > ()
+        QSharedPointer<ThinkerType> ()
 	{
 	}
 
-	template< class T > ThinkerHolder(const ThinkerHolder< T > other) :
-		QSharedPointer< ThinkerType >(other)
+    template<class T> ThinkerHolder(const ThinkerHolder<T> other) :
+        QSharedPointer<ThinkerType>(other)
 	{
 	}
 
 	ThinkerBase& getThinkerBase()
 	{
-		return *cast_hopefully< ThinkerBase* >(this->data(), HERE);
+        return *cast_hopefully<ThinkerBase*>(this->data(), HERE);
 	}
 
 	ThinkerType& getThinker()
@@ -100,7 +100,7 @@ public:
 	virtual ~ThinkerPresentBase ();
 
 protected:
-	ThinkerPresentBase (ThinkerHolder< ThinkerBase > holder);
+    ThinkerPresentBase (ThinkerHolder<ThinkerBase> holder);
 	friend class ThinkerManager;
 
 public:
@@ -157,7 +157,7 @@ public:
 	/* int progressValue() const; */
 
 protected:
-	ThinkerHolder< ThinkerBase > holder;
+    ThinkerHolder<ThinkerBase> holder;
 };
 
 #endif

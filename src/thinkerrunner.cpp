@@ -114,7 +114,7 @@ ThinkerRunnerHelper::~ThinkerRunnerHelper()
 // ThinkerRunner
 //
 
-ThinkerRunner::ThinkerRunner(ThinkerHolder< ThinkerBase > holder) :
+ThinkerRunner::ThinkerRunner(ThinkerHolder<ThinkerBase> holder) :
 	QEventLoop (),
 	state (RunnerQueued, HERE),
 	holder (holder),

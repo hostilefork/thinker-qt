@@ -112,7 +112,7 @@ protected:
 protected:
 	ThinkerPresentBase present;
 	unsigned int milliseconds;
-	QSharedPointer< SignalThrottler > notificationThrottler;
+    QSharedPointer<SignalThrottler> notificationThrottler;
 	friend class ThinkerBase;
 };
 

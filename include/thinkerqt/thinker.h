@@ -62,7 +62,7 @@ class ThinkerBase : protected QObject, virtual public SnapshottableBase {
 // an error when using QSharedPointer with a class that had inherited from
 // QObject as protected in g++ 4.2.  The problem didn't seem to appear in
 // g++ 4.4.
-template< class T > friend class QtSharedPointer::ExternalRefCount;
+template<class T> friend class QtSharedPointer::ExternalRefCount;
 
 private:
 	enum State {
@@ -185,12 +185,12 @@ private:
 // it can be a good sanity check to keep thinkers from snapshotting
 // themselves...
 
-template< class DataTypeParam >
-class Thinker : public ThinkerBase, virtual private Snapshottable< DataTypeParam >
+template<class DataTypeParam>
+class Thinker : public ThinkerBase, virtual private Snapshottable<DataTypeParam>
 {
 public:
 	typedef DataTypeParam DataType;
-	typedef typename Snapshottable< DataType >::SnapshotPointer SnapshotPointer;
+    typedef typename Snapshottable<DataType>::SnapshotPointer SnapshotPointer;
 
 public:
 	class Present : public ThinkerPresentBase
@@ -204,7 +204,7 @@ public:
 		Present (ThinkerPresentBase& base) :
 			ThinkerPresentBase (base)
 		{
-			static_cast<void>(cast_hopefully< Present* >(&base, HERE));
+            static_cast<void>(cast_hopefully<Present*>(&base, HERE));
 		}
 
 		Present (const Present& other) :
@@ -217,7 +217,7 @@ public:
 		}
 
 	protected:
-		Present (ThinkerHolder< ThinkerBase > holder) :
+        Present (ThinkerHolder<ThinkerBase> holder) :
 			ThinkerPresentBase (holder)
 		{
 		}
@@ -228,7 +228,7 @@ public:
 		{
 			hopefullyCurrentThreadIsManager(HERE);
 			SnapshotPointerBase* allocatedSnapshot (createSnapshotBase());
-			SnapshotPointer result (*cast_hopefully< SnapshotPointer* >(allocatedSnapshot, HERE));
+            SnapshotPointer result (*cast_hopefully<SnapshotPointer*>(allocatedSnapshot, HERE));
 			delete allocatedSnapshot;
 			return result;
 		}
@@ -257,7 +257,7 @@ public:
 		{
 			hopefullyCurrentThreadIsManager(HERE);
 			SnapshotPointerBase* allocatedSnapshot (createSnapshotBase());
-			SnapshotPointer result (*cast_hopefully< SnapshotPointer* >(allocatedSnapshot, HERE));
+            SnapshotPointer result (*cast_hopefully<SnapshotPointer*>(allocatedSnapshot, HERE));
 			delete allocatedSnapshot;
 			return result;
 		}
@@ -278,36 +278,36 @@ public:
 	// require your state object to be default-constructible.  See notes in
 	// snapshottable about the other constructor variants.
 
-	Thinker (QSharedDataPointer< DataType > d) :
+    Thinker (QSharedDataPointer<DataType> d) :
 		ThinkerBase (),
-		Snapshottable< DataType > (d)
+        Snapshottable<DataType> (d)
 	{
 	}
-	Thinker (ThinkerManager& mgr, QSharedDataPointer< DataType > d) :
+    Thinker (ThinkerManager& mgr, QSharedDataPointer<DataType> d) :
 		ThinkerBase (mgr),
-		Snapshottable< DataType > (d)
+        Snapshottable<DataType> (d)
 	{
 	}
 
 	Thinker (const DataType &d) :
 		ThinkerBase (),
-		Snapshottable< DataType > (d)
+        Snapshottable<DataType> (d)
 	{
 	}
 	Thinker (ThinkerManager& mgr, const DataType& d) :
 		ThinkerBase (mgr),
-		Snapshottable< DataType > (d)
+        Snapshottable<DataType> (d)
 	{
 	}
 
 	Thinker () :
 		ThinkerBase (),
-		Snapshottable< DataType > ()
+        Snapshottable<DataType> ()
 	{
 	}
 	Thinker  (ThinkerManager& mgr) :
 		ThinkerBase (mgr),
-		Snapshottable< DataType > ()
+        Snapshottable<DataType> ()
 	{
 	}
 
@@ -322,7 +322,7 @@ private:
 	/*template< class T >*/ friend class Present;
 	SnapshotPointer makeSnapshot()
 	{
-		return Snapshottable< DataType >::makeSnapshot();
+        return Snapshottable<DataType>::makeSnapshot();
 	}
 
 public:
@@ -332,11 +332,11 @@ public:
 
 	const DataTypeParam& readable(const codeplace& cp) const
 	{
-		return Snapshottable< DataType >::readable(cp);
+        return Snapshottable<DataType>::readable(cp);
 	}
 	DataTypeParam& writable(const codeplace& cp)
 	{
-		return Snapshottable< DataType >::writable(cp);
+        return Snapshottable<DataType>::writable(cp);
 	}
 #ifndef THINKERQT_REQUIRE_CODEPLACE
 	// This will cause the any asserts to indicate a failure in thinker.h instead

@@ -114,16 +114,16 @@ void ThinkerManager::ensureThinkersPaused(const codeplace& cp)
 
 	QMutexLocker locker (&mapsMutex);
 	// we have to make a copy of the map
-	QMap< const ThinkerBase*, QSharedPointer< ThinkerRunner > > mapCopy (thinkerMap);
+    QMap<const ThinkerBase*, QSharedPointer<ThinkerRunner> > mapCopy (thinkerMap);
 	locker.unlock();
 
-	QMapIterator< const ThinkerBase*, QSharedPointer< ThinkerRunner > > i (mapCopy);
+    QMapIterator<const ThinkerBase*, QSharedPointer<ThinkerRunner> > i (mapCopy);
 
 	// First pass: request all thinkers to pause (accept it if they are aborting, as they
 	// may be freed by the ThinkerPresent but not yet returned).
 	while (i.hasNext()) {
 		i.next();
-		QSharedPointer< ThinkerRunner > runner (i.value());
+        QSharedPointer<ThinkerRunner> runner (i.value());
 		runner->requestPauseButCanceledIsOkay(cp);
 	}
 
@@ -132,7 +132,7 @@ void ThinkerManager::ensureThinkersPaused(const codeplace& cp)
 	// Second pass: wait for all the thinkers to actually get their code off the stack.
 	while (i.hasNext()) {
 		i.next();
-		QSharedPointer< ThinkerRunner > runner (i.value());
+        QSharedPointer<ThinkerRunner> runner (i.value());
 		runner->waitForPauseButCanceledIsOkay();
 	}
 }
@@ -144,26 +144,26 @@ void ThinkerManager::ensureThinkersResumed(const codeplace& cp)
 	QMutexLocker locker (&mapsMutex);
 
 	// any thinkers that have not been aborted can be resumed
-	QMapIterator< const ThinkerBase*, QSharedPointer< ThinkerRunner > > i (thinkerMap);
+    QMapIterator<const ThinkerBase*, QSharedPointer<ThinkerRunner> > i (thinkerMap);
 	while (i.hasNext()) {
 		i.next();
-		QSharedPointer< ThinkerRunner > runner (i.value());
+        QSharedPointer<ThinkerRunner> runner (i.value());
 		if (runner->isPaused())
 			runner->requestResumeButCanceledIsOkay(cp);
 	}
 }
 
-QSharedPointer< ThinkerRunner > ThinkerManager::maybeGetRunnerForThread(const QThread& thread)
+QSharedPointer<ThinkerRunner> ThinkerManager::maybeGetRunnerForThread(const QThread& thread)
 {
 	QMutexLocker locker (&mapsMutex);
-	QSharedPointer< ThinkerRunner > result (threadMap.value(&thread, QSharedPointer< ThinkerRunner > ()));
+    QSharedPointer<ThinkerRunner> result (threadMap.value(&thread, QSharedPointer<ThinkerRunner> ()));
 	return result;
 }
 
 QSharedPointer< ThinkerRunner > ThinkerManager::maybeGetRunnerForThinker(const ThinkerBase& thinker)
 {
 	QMutexLocker locker (&mapsMutex);
-	QSharedPointer< ThinkerRunner > result (thinkerMap.value(&thinker, QSharedPointer< ThinkerRunner > ()));
+    QSharedPointer<ThinkerRunner> result (thinkerMap.value(&thinker, QSharedPointer<ThinkerRunner> ()));
 	if (result.isNull())
 		hopefully((thinker.state == ThinkerBase::ThinkerCanceled) || (thinker.state == ThinkerBase::ThinkerFinished), HERE);
 	return result;
@@ -171,7 +171,7 @@ QSharedPointer< ThinkerRunner > ThinkerManager::maybeGetRunnerForThinker(const T
 
 const ThinkerBase* ThinkerManager::maybeGetThinkerForThread(const QThread& thread)
 {
-	QSharedPointer< ThinkerRunner > runner (maybeGetRunnerForThread(thread));
+    QSharedPointer<ThinkerRunner> runner (maybeGetRunnerForThread(thread));
 	if (runner.isNull()) {
 		return NULL;
 	}
@@ -195,7 +195,7 @@ void ThinkerManager::ensureThinkerFinished(ThinkerBase& thinker)
 {
 	hopefullyCurrentThreadIsManager(HERE);
 
-	QSharedPointer< ThinkerRunner > runner (maybeGetRunnerForThinker(thinker));
+    QSharedPointer<ThinkerRunner> runner (maybeGetRunnerForThinker(thinker));
 	if (not runner.isNull()) {
 		hopefully(not runner->isCanceled(), HERE); // can't finish if it's aborted or invalid!
 
@@ -308,10 +308,10 @@ ThinkerManager::~ThinkerManager()
 
 	if (true) {
 		QMutexLocker locker (&mapsMutex);
-		QMapIterator< const ThinkerBase*, QSharedPointer< ThinkerRunner > > i (thinkerMap);
+        QMapIterator<const ThinkerBase*, QSharedPointer<ThinkerRunner> > i (thinkerMap);
 		while (i.hasNext()) {
 			i.next();
-			QSharedPointer< ThinkerRunner > runner (i.value());
+            QSharedPointer<ThinkerRunner> runner (i.value());
 			hopefully(runner->isCanceled() or runner->isFinished(), HERE);
 			anyRunners = true;
 		}

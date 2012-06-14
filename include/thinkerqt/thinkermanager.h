@@ -83,16 +83,16 @@ protected:
 	friend class ThinkerBase;
 
 private:
-	void createRunnerForThinker(ThinkerHolder< ThinkerBase > holder, const codeplace& cp);
+    void createRunnerForThinker(ThinkerHolder<ThinkerBase> holder, const codeplace& cp);
 
 public:
 	template<class ThinkerType>
-	typename ThinkerType::Present run(ThinkerHolder< ThinkerType > holder, const codeplace& cp) {
+    typename ThinkerType::Present run(ThinkerHolder<ThinkerType> holder, const codeplace& cp) {
 		createRunnerForThinker(holder, cp);
 		return typename ThinkerType::Present (holder);
 	}
 
-	template< class ThinkerType > ThinkerPresentBase runBase(ThinkerHolder< ThinkerType > holder, const codeplace& cp) {
+    template<class ThinkerType> ThinkerPresentBase runBase(ThinkerHolder<ThinkerType> holder, const codeplace& cp) {
 		createRunnerForThinker(holder, cp);
 		return ThinkerPresentBase (holder);
 	}
@@ -103,7 +103,7 @@ public:
 	typename ThinkerType::Present run(ThinkerType* thinker, const codeplace& cp) {
 		hopefully(thinker != NULL, cp);
 		hopefully(thinker->parent() == NULL, cp);
-		return run(ThinkerHolder< ThinkerType >(thinker), cp);
+        return run(ThinkerHolder<ThinkerType>(thinker), cp);
 	}
 
 	void ensureThinkersPaused(const codeplace& cp);
@@ -115,14 +115,14 @@ public:
 	// documentation http://hostilefork.com/hoist/
 
 	template<class ThinkerType>
-	typename ThinkerType::Present run(ThinkerHolder< ThinkerType > holder) {
+    typename ThinkerType::Present run(ThinkerHolder<ThinkerType> holder) {
 		return run(holder, HERE);
 	}
 	template<class ThinkerType>
 	typename ThinkerType::Present run(ThinkerType* thinker) {
 		return run(thinker, HERE);
 	}
-	ThinkerPresentBase runBase(ThinkerHolder< ThinkerBase > holder) {
+    ThinkerPresentBase runBase(ThinkerHolder<ThinkerBase> holder) {
 		return runBase(holder, HERE);
 	}
 	void ensureThinkersPaused()
@@ -160,20 +160,20 @@ public:
 	// But somewhat tautologically, it is true that *if* thinker code is
 	// running, it will be doing so on a thread of execution.
 private:
-	QSharedPointer< ThinkerRunner > maybeGetRunnerForThinker(const ThinkerBase& thinker);
-	QSharedPointer< ThinkerRunner > maybeGetRunnerForThread(const QThread& thread);
+    QSharedPointer<ThinkerRunner> maybeGetRunnerForThinker(const ThinkerBase& thinker);
+    QSharedPointer<ThinkerRunner> maybeGetRunnerForThread(const QThread& thread);
 	friend class ThinkerPresentBase;
 
 private:
 	SignalThrottler anyThinkerWrittenThrottler;
 	QMutex mapsMutex;
-	QMap< const QThread*, QSharedPointer< ThinkerRunner > > threadMap;
-	QMap< const ThinkerBase*, QSharedPointer< ThinkerRunner > > thinkerMap;
+    QMap<const QThread*, QSharedPointer<ThinkerRunner> > threadMap;
+    QMap<const ThinkerBase*, QSharedPointer<ThinkerRunner> > thinkerMap;
 
 	QMutex pushThreadMutex;
 	QWaitCondition threadsWerePushed;
 	QWaitCondition threadsNeedPushing;
-	QSet< ThinkerRunner* > runnerSetToPush;
+    QSet<ThinkerRunner*> runnerSetToPush;
 };
 
 #endif

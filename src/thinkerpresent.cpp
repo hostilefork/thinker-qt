@@ -37,7 +37,7 @@ ThinkerPresentBase::ThinkerPresentBase (const ThinkerPresentBase& other) :
 {
 }
 
-ThinkerPresentBase::ThinkerPresentBase (ThinkerHolder< ThinkerBase > holder) :
+ThinkerPresentBase::ThinkerPresentBase (ThinkerHolder<ThinkerBase> holder) :
 	holder (holder)
 {
 }
@@ -219,7 +219,7 @@ SnapshotPointerBase* ThinkerPresentBase::createSnapshotBase() const
 	hopefullyCurrentThreadIsManager(HERE);
 
 	const ThinkerBase& thinker (getThinkerBase());
-	return static_cast< const SnapshottableBase* >(&thinker)->createSnapshotBase();
+    return static_cast<const SnapshottableBase*>(&thinker)->createSnapshotBase();
 }
 
 ThinkerPresentBase::~ThinkerPresentBase()
