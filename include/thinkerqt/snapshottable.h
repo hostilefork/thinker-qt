@@ -93,6 +93,10 @@ public:
 	virtual void clear() = 0;
 	virtual const SnapshottableData* dataBase() const = 0;
 
+    // Avoids "deleting object of abstract class type 'SnapshotPointerBase' which
+    // has non-virtual destructor will cause undefined behavior" error.
+    virtual ~SnapshotPointerBase() {}
+
 private:
 	// (...there should be a member put here...)
 	// QSharedDataPointer< Derived > d;
@@ -329,5 +333,10 @@ private:
 
     QSharedDataPointer<DataType> d;
 };
+
+// we moc this file, though whether there are any QObjects or not may vary
+// this dummy object suppresses the warning "No relevant classes found" w/moc
+class SNAPSHOTTABLE_no_moc_warning : public QObject { Q_OBJECT };
+
 
 #endif
