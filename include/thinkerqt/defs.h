@@ -22,8 +22,20 @@
 #ifndef THINKERQT__DEFS_H
 #define THINKERQT__DEFS_H
 
-#include <QSharedPointer>
+// http://stackoverflow.com/questions/11150225/generalizing-shared-pointers-and-qsharedpointerdata-vs-shared-ptrget
+#if THINKERQT_USE_STD_SHARED_PTR
 
+#include <memory>
+template<class T>
+using shared_ptr_type = std::shared_ptr<T>;
+
+#else
+
+#include <QSharedPointer>
+template<class T>
+using shared_ptr_type = QSharedPtr<T>;
+
+#endif
 
 #if THINKERQT_USE_HOIST
 

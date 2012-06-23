@@ -148,10 +148,10 @@ public:
 	}
 
 public:
-	void addToThinkerMap(QSharedPointer<ThinkerRunner> runner);
-	void removeFromThinkerMap(QSharedPointer<ThinkerRunner> runner, bool wasCanceled);
-	void addToThreadMap(QSharedPointer<ThinkerRunner> runner, QThread& thread);
-	void removeFromThreadMap(QSharedPointer<ThinkerRunner> runner, QThread& thread);
+    void addToThinkerMap(shared_ptr_type<ThinkerRunner> runner);
+    void removeFromThinkerMap(shared_ptr_type<ThinkerRunner> runner, bool wasCanceled);
+    void addToThreadMap(shared_ptr_type<ThinkerRunner> runner, QThread& thread);
+    void removeFromThreadMap(shared_ptr_type<ThinkerRunner> runner, QThread& thread);
 
 	// Runners are like "tasks".  There is not necessarily a one-to-one
 	// correspondence between Runners and thinkers.  So you must be
@@ -160,15 +160,15 @@ public:
 	// But somewhat tautologically, it is true that *if* thinker code is
 	// running, it will be doing so on a thread of execution.
 private:
-    QSharedPointer<ThinkerRunner> maybeGetRunnerForThinker(const ThinkerBase& thinker);
-    QSharedPointer<ThinkerRunner> maybeGetRunnerForThread(const QThread& thread);
+    shared_ptr_type<ThinkerRunner> getRunnerForThinkerMaybeNull(const ThinkerBase& thinker);
+    shared_ptr_type<ThinkerRunner> getRunnerForThreadMaybeNull(const QThread& thread);
 	friend class ThinkerPresentBase;
 
 private:
 	SignalThrottler anyThinkerWrittenThrottler;
 	QMutex mapsMutex;
-    QMap<const QThread*, QSharedPointer<ThinkerRunner> > threadMap;
-    QMap<const ThinkerBase*, QSharedPointer<ThinkerRunner> > thinkerMap;
+    QMap<const QThread*, shared_ptr_type<ThinkerRunner> > threadMap;
+    QMap<const ThinkerBase*, shared_ptr_type<ThinkerRunner> > thinkerMap;
 
 	QMutex pushThreadMutex;
 	QWaitCondition threadsWerePushed;

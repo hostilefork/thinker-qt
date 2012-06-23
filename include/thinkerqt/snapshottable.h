@@ -145,7 +145,7 @@ protected:
 
 protected:
 	mutable QReadWriteLock dLock;
-	tracked< bool > lockedForWrite;
+    tracked<bool> lockedForWrite;
 };
 
 
@@ -166,7 +166,7 @@ protected:
 //    http://doc.trolltech.com/qq/qq15-academic.html
 //
 
-template< class DataTypeParam >
+template<class DataTypeParam>
 class Snapshottable : virtual public SnapshottableBase
 {
 public:
@@ -227,7 +227,7 @@ public:
 	protected:
 		/* virtual */ const SnapshottableData* dataBase() const
 		{
-			return dynamic_cast< const SnapshottableData* >(data());
+            return dynamic_cast<const SnapshottableData*>(data());
 		}
 
 	private:

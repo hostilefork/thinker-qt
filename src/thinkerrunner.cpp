@@ -24,12 +24,12 @@
 #include "thinkerrunner.h"
 #include "thinkerqt/thinkermanager.h"
 
-// operator << for ThinkerRunner::State
+// operator<< for ThinkerRunner::State
 //
 // Required by tracked< > because it must be able to present a proper debug
 // message about the tracked value.
 
-inline QTextStream& operator << (QTextStream& o, const ThinkerRunner::State& state)
+inline QTextStream& operator<< (QTextStream& o, const ThinkerRunner::State& state)
 {
 	o << "ThinkerRunner::";
 	switch (state) {
@@ -120,7 +120,7 @@ ThinkerRunner::ThinkerRunner(ThinkerHolder<ThinkerBase> holder) :
 	holder (holder),
 	helper ()
 {
-	hopefully(not holder.isNull(), HERE);
+/*	hopefully(not holder.isNull(), HERE); */
 
 	// need to check this, because we will later ask the manager to move the
 	// Thinker to the thread of the QRunnable (when we find out what that thread
@@ -148,11 +148,11 @@ ThinkerManager& ThinkerRunner::getManager() const
 }
 
 const ThinkerBase& ThinkerRunner::getThinker() const {
-	return *holder.data();
+    return holder.getThinkerBase();
 }
 
 ThinkerBase& ThinkerRunner::getThinker() {
-	return *holder.data();
+    return holder.getThinker();
 }
 
 void ThinkerRunner::doThreadPushIfNecessary()
@@ -521,7 +521,7 @@ ThinkerRunner::~ThinkerRunner()
 // ThinkerRunnerProxy
 //
 
-ThinkerRunnerProxy::ThinkerRunnerProxy (QSharedPointer<ThinkerRunner> runner) :
+ThinkerRunnerProxy::ThinkerRunnerProxy (shared_ptr_type<ThinkerRunner> runner) :
 	runner (runner)
 {
 	getManager().addToThinkerMap(runner);

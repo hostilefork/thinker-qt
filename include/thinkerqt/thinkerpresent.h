@@ -42,31 +42,37 @@ class ThinkerManager;
 // http://doc.trolltech.com/4.5/qsharedpointer.html#QSharedPointer-3
 
 template<class ThinkerType>
-class ThinkerHolder : public QSharedPointer<ThinkerType> {
+class ThinkerHolder : public shared_ptr_type<ThinkerType> {
 public:
     ThinkerHolder (ThinkerType* thinker) :
-        QSharedPointer<ThinkerType> (thinker, doDeleteLater)
+        shared_ptr_type<ThinkerType> (thinker, doDeleteLater)
 	{
 	}
 
+    /*
 	ThinkerHolder () :
-        QSharedPointer<ThinkerType> ()
+        shared_ptr_type<ThinkerType> ()
 	{
 	}
+    */
 
     template<class T> ThinkerHolder(const ThinkerHolder<T> other) :
-        QSharedPointer<ThinkerType>(other)
+        shared_ptr_type<ThinkerType>(other)
 	{
 	}
+
+    const ThinkerBase& getThinkerBase() const {
+        return *cast_hopefully<const ThinkerBase*>(&(**this), HERE);
+    }
 
 	ThinkerBase& getThinkerBase()
 	{
-        return *cast_hopefully<ThinkerBase*>(this->data(), HERE);
+        return *cast_hopefully<ThinkerBase*>(&(**this), HERE);
 	}
 
 	ThinkerType& getThinker()
 	{
-		return *this->data();
+        return *(*this);
 	}
 
 private:
@@ -159,5 +165,9 @@ public:
 protected:
     ThinkerHolder<ThinkerBase> holder;
 };
+
+// we moc this file, though whether there are any QObjects or not may vary
+// this dummy object suppresses the warning "No relevant classes found" w/moc
+class THINKERPRESENT_no_moc_warning : public QObject { Q_OBJECT };
 
 #endif

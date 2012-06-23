@@ -182,13 +182,13 @@ private:
 
 class ThinkerRunnerProxy : public QRunnable {
 public:
-	ThinkerRunnerProxy (QSharedPointer<ThinkerRunner> runner);
+    ThinkerRunnerProxy (shared_ptr_type<ThinkerRunner> runner);
 	ThinkerManager& getManager();
 	void run();
 	~ThinkerRunnerProxy ();
 
 private:
-	QSharedPointer<ThinkerRunner> runner;
+    shared_ptr_type<ThinkerRunner> runner;
 };
 
 #endif

@@ -61,33 +61,33 @@ ThinkerPresentBase& ThinkerPresentBase::operator= (const ThinkerPresentBase & ot
 
 bool ThinkerPresentBase::hopefullyCurrentThreadIsManager(const codeplace& cp) const
 {
-	return holder.isNull() ? true : holder->getManager().hopefullyCurrentThreadIsManager(cp);
+    return /* holder.isNull() ? true : */ holder->getManager().hopefullyCurrentThreadIsManager(cp);
 }
 
 ThinkerBase& ThinkerPresentBase::getThinkerBase() {
 	hopefullyCurrentThreadIsManager(HERE);
-	return *holder.data();
+    return holder.getThinkerBase();
 }
 
 const ThinkerBase& ThinkerPresentBase::getThinkerBase() const {
 	hopefullyCurrentThreadIsManager(HERE);
-	return *holder.data();
+    return holder.getThinkerBase();
 }
 
 bool ThinkerPresentBase::isCanceled() const
 {
 	hopefullyCurrentThreadIsManager(HERE);
 
-	if (holder.isNull())
-		return true;
+/*	if (holder.isNull())
+        return true; */
 
 	const ThinkerBase& thinker (getThinkerBase());
-	QSharedPointer<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
+    shared_ptr_type<ThinkerRunner> runner (thinker.getManager().getRunnerForThinkerMaybeNull(thinker));
 	bool result = false;
-	if (runner.isNull()) {
+    if (runner == nullptr) {
 		result = (thinker.state == ThinkerBase::ThinkerCanceled);
 	} else {
-		result = runner->isCanceled();
+        result = runner->isCanceled();
 	}
 	return result;
 }
@@ -96,13 +96,13 @@ bool ThinkerPresentBase::isFinished() const
 {
 	hopefullyCurrentThreadIsManager(HERE);
 
-	if (holder.isNull())
-		return false;
+/*	if (holder.isNull())
+        return false; */
 
 	const ThinkerBase& thinker (getThinkerBase());
-	QSharedPointer<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
+    shared_ptr_type<ThinkerRunner> runner (thinker.getManager().getRunnerForThinkerMaybeNull(thinker));
 	bool result = false;
-	if (runner.isNull()) {
+    if (runner == nullptr) {
 		result = (thinker.state == ThinkerBase::ThinkerFinished);
 	} else {
 		result = runner->isFinished();
@@ -114,13 +114,13 @@ bool ThinkerPresentBase::isPaused() const
 {
 	hopefullyCurrentThreadIsManager(HERE);
 
-	if (holder.isNull())
-		return false;
+/*	if (holder.isNull())
+        return false; */
 
 	const ThinkerBase& thinker (getThinkerBase());
-	QSharedPointer<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
+    shared_ptr_type<ThinkerRunner> runner (thinker.getManager().getRunnerForThinkerMaybeNull(thinker));
 	bool result = false;
-	if (runner.isNull()) {
+    if (runner == nullptr) {
 		// the thinker has either finished or been canceled
 	} else {
 		result = runner->isPaused();
@@ -134,12 +134,12 @@ void ThinkerPresentBase::cancel()
 
 	// See QFuture for precedent... you can call cancel() on a default constructed
 	// QFuture object and it's a no-op
-	if (holder.isNull())
-		return;
+/*	if (holder.isNull())
+        return; */
 
 	ThinkerBase& thinker (getThinkerBase());
-	QSharedPointer<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
-	if (runner.isNull()) {
+    shared_ptr_type<ThinkerRunner> runner (thinker.getManager().getRunnerForThinkerMaybeNull(thinker));
+    if (runner == nullptr) {
 		thinker.state = ThinkerBase::ThinkerCanceled;
 	} else {
 		// No need to enforceCancel at this point (which would cause a
@@ -154,11 +154,11 @@ void ThinkerPresentBase::pause()
 {
 	hopefullyCurrentThreadIsManager(HERE);
 
-	hopefully(not holder.isNull(), HERE); // what would it mean to pause a null?  What's precedent in QFuture?
+/*	hopefully(not holder.isNull(), HERE); // what would it mean to pause a null?  What's precedent in QFuture? */
 
 	ThinkerBase& thinker (getThinkerBase());
-	QSharedPointer<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
-	hopefully(not runner.isNull(), HERE); // you can't pause a thinker that's finished or canceled
+    shared_ptr_type<ThinkerRunner> runner (thinker.getManager().getRunnerForThinkerMaybeNull(thinker));
+    hopefully(runner != nullptr, HERE); // you can't pause a thinker that's finished or canceled
 
 	// If there is a pause, we should probably stop update signals and queue a
 	// single update at the moment of resume
@@ -169,11 +169,11 @@ void ThinkerPresentBase::resume()
 {
 	hopefullyCurrentThreadIsManager(HERE);
 
-	hopefully(not holder.isNull(), HERE); // what would it mean to pause a null?  What's precedent in QFuture?
+/*	hopefully(not holder.isNull(), HERE); // what would it mean to pause a null?  What's precedent in QFuture? */
 
 	ThinkerBase& thinker (getThinkerBase());
-	QSharedPointer<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
-	hopefully(not runner.isNull(), HERE); // you cannot resume a thinker that has finished or canceled
+    shared_ptr_type<ThinkerRunner> runner (thinker.getManager().getRunnerForThinkerMaybeNull(thinker));
+    hopefully(runner != nullptr, HERE); // you cannot resume a thinker that has finished or canceled
 	// If there is a pause, we should probably stop update signals and queue a
 	// single update at the moment of resume
 	runner->requestResume(HERE);
@@ -206,8 +206,8 @@ void ThinkerPresentBase::waitForFinished()
 
 	ThinkerBase& thinker (getThinkerBase());
 
-	QSharedPointer<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
-	if (runner.isNull()) {
+    shared_ptr_type<ThinkerRunner> runner (thinker.getManager().getRunnerForThinkerMaybeNull(thinker));
+    if (runner == nullptr) {
 		// has either finished or canceled
 	} else {
 		runner->waitForFinished(HERE);

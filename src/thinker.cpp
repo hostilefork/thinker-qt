@@ -77,8 +77,11 @@ bool ThinkerBase::wasPauseRequested(unsigned long time) const
 {
 	hopefullyCurrentThreadIsThink(HERE);
 
-	QSharedPointer<ThinkerRunner> runner (getManager().maybeGetRunnerForThinker(*this));
-	hopefully(not runner.isNull(), HERE);
+    shared_ptr_type<ThinkerRunner> runner (getManager().getRunnerForThinkerMaybeNull(*this));
+    if (runner == nullptr) {
+        hopefully(state == ThinkerFinished, HERE);
+        return false;
+    }
 	return runner->wasPauseRequested(time);
 }
 
@@ -87,9 +90,12 @@ void ThinkerBase::pollForStopException(unsigned long time) const
 {
 	hopefullyCurrentThreadIsThink(HERE);
 
-	QSharedPointer<ThinkerRunner> runner (getManager().maybeGetRunnerForThinker(*this));
-	hopefully(not runner.isNull(), HERE);
-	runner->pollForStopException(time);
+    shared_ptr_type<ThinkerRunner> runner (getManager().getRunnerForThinkerMaybeNull(*this));
+    if (runner == nullptr) {
+        hopefully(state == ThinkerFinished, HERE);
+    } else {
+        runner->pollForStopException(time);
+    }
 }
 #endif
 
@@ -97,13 +103,13 @@ void ThinkerBase::onResumeThinking()
 {
 	hopefullyCurrentThreadIsThink(HERE);
 
-	QSharedPointer<ThinkerRunner> runner (getManager().maybeGetRunnerForThinker(*this));
-	hopefully(not runner.isNull(), HERE);
+    shared_ptr_type<ThinkerRunner> runner (getManager().getRunnerForThinkerMaybeNull(*this));
+    hopefully(runner != nullptr, HERE);
 	resume();
 }
 
 ThinkerBase::~ThinkerBase ()
 {
 	getManager().hopefullyCurrentThreadIsManager(HERE);
-	hopefully(getManager().maybeGetRunnerForThinker(*this).isNull(), HERE);
+    hopefully(getManager().getRunnerForThinkerMaybeNull(*this) == nullptr, HERE);
 }
