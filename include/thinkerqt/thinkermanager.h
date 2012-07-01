@@ -65,7 +65,7 @@ public:
 	bool hopefullyCurrentThreadIsThinker(const codeplace& cp);
 
 public:
-	const ThinkerBase* maybeGetThinkerForThread(const QThread& thread);
+    const ThinkerBase* getThinkerForThreadMaybeNull(const QThread& thread);
 
 	// It used to be that Thinkers (QObjects) were created on the Manager thread and then pushed
 	// to a thread of their own during the Run.  Since Run now queues, that push is deferred.  We

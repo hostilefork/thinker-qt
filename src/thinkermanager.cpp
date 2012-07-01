@@ -170,7 +170,7 @@ shared_ptr_type<ThinkerRunner> ThinkerManager::getRunnerForThinkerMaybeNull(cons
 	return result;
 }
 
-const ThinkerBase* ThinkerManager::maybeGetThinkerForThread(const QThread& thread)
+const ThinkerBase* ThinkerManager::getThinkerForThreadMaybeNull(const QThread& thread)
 {
     shared_ptr_type<ThinkerRunner> runner (getRunnerForThreadMaybeNull(thread));
     if (runner == nullptr) {
