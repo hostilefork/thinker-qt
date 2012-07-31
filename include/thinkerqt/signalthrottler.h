@@ -19,8 +19,8 @@
 // See http://hostilefork.com/thinker-qt/ for more information on this project
 //
 
-#ifndef THINKERQT__SIGNALTHROTTLER_H
-#define THINKERQT__SIGNALTHROTTLER_H
+#ifndef THINKERQT_SIGNALTHROTTLER_H
+#define THINKERQT_SIGNALTHROTTLER_H
 
 #include <QTimer>
 #include <QTime>

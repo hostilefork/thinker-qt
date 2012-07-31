@@ -19,8 +19,8 @@
 // See http://hostilefork.com/thinker-qt/ for more information on this project
 //
 
-#ifndef THINKERQT__THINKERPRESENTWATCHER_H
-#define THINKERQT__THINKERPRESENTWATCHER_H
+#ifndef THINKERQT_THINKERPRESENTWATCHER_H
+#define THINKERQT_THINKERPRESENTWATCHER_H
 
 #include <QObject>
 #include <QSharedPointer>

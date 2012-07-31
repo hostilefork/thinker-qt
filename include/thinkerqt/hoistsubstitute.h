@@ -19,8 +19,8 @@
 // See http://hostilefork.com/thinker-qt/ for more information on this project
 //
 
-#ifndef THINKERQT__HOISTSUBSTITUTE_H
-#define THINKERQT__HOISTSUBSTITUTE_H
+#ifndef THINKERQT_HOISTSUBSTITUTE_H
+#define THINKERQT_HOISTSUBSTITUTE_H
 
 // These definitions are stubs which let you build Thinker-Qt without hoist,
 // turning the hoist features into simple asserts

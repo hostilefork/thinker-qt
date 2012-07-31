@@ -19,8 +19,8 @@
 // See http://hostilefork.com/thinker-qt/ for more information on this project
 //
 
-#ifndef THINKERQT__THINKERQT_H
-#define THINKERQT__THINKERQT_H
+#ifndef THINKERQT_THINKERQT_H
+#define THINKERQT_THINKERQT_H
 
 #include "thinker.h"
 #include "thinkermanager.h"

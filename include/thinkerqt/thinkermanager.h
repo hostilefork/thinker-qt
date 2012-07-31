@@ -19,8 +19,8 @@
 // See http://hostilefork.com/thinker-qt/ for more information on this project
 //
 
-#ifndef THINKERQT__THINKERMANAGER_H
-#define THINKERQT__THINKERMANAGER_H
+#ifndef THINKERQT_THINKERMANAGER_H
+#define THINKERQT_THINKERMANAGER_H
 
 #include <QThread>
 #include <QMutex>

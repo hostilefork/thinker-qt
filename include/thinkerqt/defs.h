@@ -19,8 +19,8 @@
 // See http://hostilefork.com/thinker-qt/ for more information on this project
 //
 
-#ifndef THINKERQT__DEFS_H
-#define THINKERQT__DEFS_H
+#ifndef THINKERQT_DEFS_H
+#define THINKERQT_DEFS_H
 
 // http://stackoverflow.com/questions/11150225/generalizing-shared-pointers-and-qsharedpointerdata-vs-shared-ptrget
 #if THINKERQT_USE_STD_SHARED_PTR

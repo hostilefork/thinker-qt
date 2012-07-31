@@ -19,8 +19,8 @@
 // See http://hostilefork.com/thinker-qt/ for more information on this project
 //
 
-#ifndef THINKERQT__SNAPSHOTTABLE_H
-#define THINKERQT__SNAPSHOTTABLE_H
+#ifndef THINKERQT_SNAPSHOTTABLE_H
+#define THINKERQT_SNAPSHOTTABLE_H
 
 #include <QSharedData>
 #include <QSharedDataPointer>
