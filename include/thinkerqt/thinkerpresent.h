@@ -30,63 +30,6 @@
 class ThinkerBase;
 class ThinkerManager;
 
-// ThinkerHolder
-//
-// We only want to run the destructor of the Thinker on the thread where
-// it was created.  But if we use QSharedPointer to a Thinker then that means
-// we are surrendering the control of which thread will actually be the
-// one to perform the deletion (it will happen on which ever thread happens
-// to be the last one to release a reference).
-//
-// This uses a custom deleter to ensure that we call QObject::deleteLater
-// http://doc.trolltech.com/4.5/qsharedpointer.html#QSharedPointer-3
-
-template<class ThinkerType>
-class ThinkerHolder : public shared_ptr_type<ThinkerType> {
-public:
-    ThinkerHolder (ThinkerType* thinker) :
-        shared_ptr_type<ThinkerType> (thinker, doDeleteLater)
-	{
-	}
-
-    /*
-	ThinkerHolder () :
-        shared_ptr_type<ThinkerType> ()
-	{
-	}
-    */
-
-    template<class T> ThinkerHolder(const ThinkerHolder<T> other) :
-        shared_ptr_type<ThinkerType>(other)
-	{
-	}
-
-    const ThinkerBase& getThinkerBase() const {
-        return *cast_hopefully<const ThinkerBase*>(&(**this), HERE);
-    }
-
-	ThinkerBase& getThinkerBase()
-	{
-        return *cast_hopefully<ThinkerBase*>(&(**this), HERE);
-	}
-
-	ThinkerType& getThinker()
-	{
-        return *(*this);
-	}
-
-private:
-	// Deleters are tough to do as friends because one needs to generally friend
-	// functions or classes within the smart pointer implementation.
-	static void doDeleteLater(ThinkerType* thinker)
-	{
-		if (thinker->thread() == QThread::currentThread())
-			delete thinker;
-		else
-			thinker->deleteLater();
-	}
-};
-
 //
 // ThinkerPresent
 //
@@ -106,7 +49,7 @@ public:
 	virtual ~ThinkerPresentBase ();
 
 protected:
-    ThinkerPresentBase (ThinkerHolder<ThinkerBase> holder);
+    ThinkerPresentBase (shared_ptr<ThinkerBase> holder);
 	friend class ThinkerManager;
 
 public:
@@ -163,7 +106,7 @@ public:
 	/* int progressValue() const; */
 
 protected:
-    ThinkerHolder<ThinkerBase> holder;
+    shared_ptr<ThinkerBase> holder;
 };
 
 // we moc this file, though whether there are any QObjects or not may vary

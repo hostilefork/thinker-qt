@@ -22,20 +22,13 @@
 #ifndef THINKERQT_DEFS_H
 #define THINKERQT_DEFS_H
 
-// http://stackoverflow.com/questions/11150225/generalizing-shared-pointers-and-qsharedpointerdata-vs-shared-ptrget
-#if THINKERQT_USE_STD_SHARED_PTR
+// Old versions of Thinker-Qt had a flag THINKERQT_USE_STD_SHARED_PTR, for this:
+//     http://stackoverflow.com/questions/11150225/generalizing-shared-pointers-and-qsharedpointerdata-vs-shared-ptrget
+// I'm currently on to C++11 with my projects, so favor shared_ptr over QSharedPointer
 
 #include <memory>
-template<class T>
-using shared_ptr_type = std::shared_ptr<T>;
-
-#else
-
-#include <QSharedPointer>
-template<class T>
-using shared_ptr_type = QSharedPtr<T>;
-
-#endif
+using std::shared_ptr;
+using std::unique_ptr;
 
 #if THINKERQT_USE_HOIST
 

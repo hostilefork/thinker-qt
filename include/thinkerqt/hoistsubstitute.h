@@ -81,7 +81,7 @@ inline bool hopefullyNotReached(const codeplace& cp)
 	return hopefullyNotReached("unreachable code", cp);
 }
 
-template < class TrackType >
+template <class TrackType>
 class tracked {
 public:
 	tracked (const TrackType& value, const codeplace& /* cp */) :
@@ -90,7 +90,7 @@ public:
 	}
 
 public:
-	void assign(const TrackType& newValue, const codeplace& cp)
+    void assign(const TrackType& newValue, const codeplace& /* cp */)
 	{
 		value = newValue;
 	}
@@ -131,11 +131,11 @@ public:
 	}
 	bool hopefullyNotInSet(const TrackType& badValue1, const TrackType& badValue2, const codeplace& cp) const
 	{
-		return hopefully((value != badValue1) && (value != badValue2), cp);
+        return hopefully((value != badValue1) and (value != badValue2), cp);
 	}
 	bool hopefullyNotInSet(const TrackType& badValue1, const TrackType& badValue2, const TrackType& badValue3, const codeplace& cp) const
 	{
-		return hopefully((value != badValue1) && (value != badValue2) && (value != badValue3), cp);
+        return hopefully((value != badValue1) and (value != badValue2) and (value != badValue3), cp);
 	}
 
 
@@ -153,7 +153,7 @@ private:
 };
 
 template < class DestType, class SourceType >
-DestType cast_hopefully(SourceType src, const codeplace& cp)
+DestType cast_hopefully(SourceType src, const codeplace& /* cp */)
 {
 	return static_cast< DestType >(src);
 }

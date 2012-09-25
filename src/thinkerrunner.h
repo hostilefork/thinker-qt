@@ -78,7 +78,7 @@ private:
 	};
 
 public:
-	ThinkerRunner (ThinkerHolder< ThinkerBase > holder);
+    ThinkerRunner (shared_ptr< ThinkerBase > holder);
 	virtual ~ThinkerRunner ();
 
 public:
@@ -161,7 +161,7 @@ private:
 	// it's for communication between one manager and one thinker so use wakeOne()
 	mutable QWaitCondition stateWasChanged;
 	mutable QMutex stateMutex;
-    ThinkerHolder<ThinkerBase> holder;
+    shared_ptr<ThinkerBase> holder;
     QSharedPointer<ThinkerRunnerHelper> helper;
 
 	// http://www.learncpp.com/cpp-tutorial/93-overloading-the-io-operators/
@@ -182,13 +182,13 @@ private:
 
 class ThinkerRunnerProxy : public QRunnable {
 public:
-    ThinkerRunnerProxy (shared_ptr_type<ThinkerRunner> runner);
+    ThinkerRunnerProxy (shared_ptr<ThinkerRunner> runner);
 	ThinkerManager& getManager();
 	void run();
 	~ThinkerRunnerProxy ();
 
 private:
-    shared_ptr_type<ThinkerRunner> runner;
+    shared_ptr<ThinkerRunner> runner;
 };
 
 #endif

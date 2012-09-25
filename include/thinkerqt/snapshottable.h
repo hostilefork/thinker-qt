@@ -22,6 +22,7 @@
 #ifndef THINKERQT_SNAPSHOTTABLE_H
 #define THINKERQT_SNAPSHOTTABLE_H
 
+#include <QObject>
 #include <QSharedData>
 #include <QSharedDataPointer>
 #include <QReadWriteLock>
@@ -225,7 +226,7 @@ public:
 		}
 
 	protected:
-		/* virtual */ const SnapshottableData* dataBase() const
+        virtual const SnapshottableData* dataBase() const override
 		{
             return dynamic_cast<const SnapshottableData*>(data());
 		}
@@ -284,7 +285,7 @@ public:
 	{
 	}
 
-	/* virtual */ ~Snapshottable()
+    virtual ~Snapshottable() override
 	{
 	}
 
@@ -297,7 +298,7 @@ public:
 		return result;
 	}
 
-	/* virtual */  SnapshotPointerBase* createSnapshotBase() const
+    virtual SnapshotPointerBase* createSnapshotBase() const override
 	{
 		return new SnapshotPointer (createSnapshot());
 	}
@@ -307,7 +308,7 @@ protected:
 	// there is no need for the Snapshottable object to do any
 	// locks before reading
 
-	const DataType& readable() const
+    DataType const & readable() const
 	{
 		return *d;
 	}
@@ -319,7 +320,7 @@ protected:
 	// unlock it should be in a state that is okay to have a
 	// snapshot taken
 
-	DataType& writable(const codeplace& cp)
+    DataType & writable(const codeplace& cp)
 	{
 		lockedForWrite.hopefullyEqualTo(true, cp);
 		return *d;

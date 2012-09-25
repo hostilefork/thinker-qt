@@ -22,6 +22,7 @@ HEADERS     += $$THINKER_INC/signalthrottler.h \
                $$THINKER_SRC/thinkerrunner.h
 
 INCLUDEPATH += ../../include
+QMAKE_CXXFLAGS += -std=c++0x
 
 unix:!mac:!symbian:!vxworks:LIBS += -lm
 

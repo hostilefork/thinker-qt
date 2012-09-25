@@ -27,10 +27,10 @@
 
 namespace ThinkerQt {
 
-template<class ThinkerType>
-typename ThinkerType::Present run(ThinkerType* thinker)
+template<class ThinkerType, class... Args>
+typename ThinkerType::Present run(Args&&... args)
 {
-	return ThinkerManager::globalInstance()->run(thinker);
+    return ThinkerManager::globalInstance()->run(unique_ptr<ThinkerType>(new ThinkerType (std::forward<Args>(args)...)));
 }
 
 };

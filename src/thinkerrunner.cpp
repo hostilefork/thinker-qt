@@ -114,7 +114,7 @@ ThinkerRunnerHelper::~ThinkerRunnerHelper()
 // ThinkerRunner
 //
 
-ThinkerRunner::ThinkerRunner(ThinkerHolder<ThinkerBase> holder) :
+ThinkerRunner::ThinkerRunner(shared_ptr<ThinkerBase> holder) :
 	QEventLoop (),
 	state (RunnerQueued, HERE),
 	holder (holder),
@@ -148,11 +148,11 @@ ThinkerManager& ThinkerRunner::getManager() const
 }
 
 const ThinkerBase& ThinkerRunner::getThinker() const {
-    return holder.getThinkerBase();
+    return *holder;
 }
 
 ThinkerBase& ThinkerRunner::getThinker() {
-    return holder.getThinker();
+    return *holder;
 }
 
 void ThinkerRunner::doThreadPushIfNecessary()
@@ -521,7 +521,7 @@ ThinkerRunner::~ThinkerRunner()
 // ThinkerRunnerProxy
 //
 
-ThinkerRunnerProxy::ThinkerRunnerProxy (shared_ptr_type<ThinkerRunner> runner) :
+ThinkerRunnerProxy::ThinkerRunnerProxy (shared_ptr<ThinkerRunner> runner) :
 	runner (runner)
 {
 	getManager().addToThinkerMap(runner);

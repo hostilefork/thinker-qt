@@ -77,9 +77,8 @@ void MandelbrotWidget::resetThinker(double centerX, double centerY,
 {
     watcher.cancel();
 
-    RenderThinker* thinker = new RenderThinker(centerX, centerY,
-                scaleFactor, resultSize, colormap);
-    watcher.setPresent(ThinkerQt::run(thinker));
+    watcher.setPresent(ThinkerQt::run<RenderThinker>(centerX, centerY,
+        scaleFactor, resultSize, colormap));
 }
 
 void MandelbrotWidget::paintEvent(QPaintEvent * /* event */)

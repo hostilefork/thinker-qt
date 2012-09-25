@@ -51,18 +51,8 @@ class ThinkerPresentWatcherBase;
 //	http://doc.trolltech.com/qq/qq15-academic.html
 //
 
-class ThinkerBase : protected QObject, virtual public SnapshottableBase {
-	// To help eliminate the misunderstanding of introducing control signals designed to
-	// change a thinker from the simple forward path of start=>pause=>continue/stop,
-	// it does not publicly inherit from QObject.
+class ThinkerBase : public QObject, virtual public SnapshottableBase {
 	Q_OBJECT
-
-// REVIEW: This seems needed because of some strange sniffing that
-// The QSharedPointer ExternalRefCount class does of QObjects.  It caused
-// an error when using QSharedPointer with a class that had inherited from
-// QObject as protected in g++ 4.2.  The problem didn't seem to appear in
-// g++ 4.4.
-template<class T> friend class QtSharedPointer::ExternalRefCount;
 
 private:
 	enum State {
@@ -72,7 +62,7 @@ private:
 	};
 
 public:
-	ThinkerBase (ThinkerManager& mgr);
+    ThinkerBase (ThinkerManager & mgr);
 	ThinkerBase ();
 	virtual ~ThinkerBase ();
 
@@ -96,10 +86,9 @@ public:
 	virtual void beforeThreadDetach();
 
 friend class ThinkerRunner;
-template< class ThinkerType > friend class ThinkerHolder;
 
 public:
-	bool hopefullyCurrentThreadIsThink(const codeplace& cp) const
+    bool hopefullyCurrentThreadIsThink(codeplace const & cp) const
 	{
 		// we currently allow locking a thinker for writing
 		// on the manager thread between the time the
@@ -112,8 +101,8 @@ protected:
 	// These overrides provide added checking and also signal
 	// "progress" when the unlock runs.
 
-	/* virtual */ void lockForWrite(const codeplace& cp);
-	/* virtual */ void unlock(const codeplace& cp);
+    virtual void lockForWrite(codeplace const & cp) override;
+    virtual void unlock(codeplace const & cp) override;
 
 #ifndef THINKERQT_REQUIRE_CODEPLACE
 	// This will cause the any asserts to indicate a failure in thinker.h instead
@@ -157,9 +146,9 @@ protected:
 
 private:
 	State state;
-	ThinkerManager& mgr;
+    ThinkerManager & mgr;
 	QReadWriteLock watchersLock;
-	QSet<ThinkerPresentWatcherBase*> watchers;
+    QSet<ThinkerPresentWatcherBase *> watchers;
 
 	friend class ThinkerManager;
 	friend class ThinkerPresentWatcherBase;
@@ -207,17 +196,17 @@ public:
             static_cast<void>(cast_hopefully<Present*>(&base, HERE));
 		}
 
-		Present (const Present& other) :
+        Present (Present const & other) :
 			ThinkerPresentBase (other)
 		{
 		}
 
-		/* virtual */ ~Present ()
+        virtual ~Present () override
 		{
 		}
 
 	protected:
-        Present (ThinkerHolder<ThinkerBase> holder) :
+        Present (shared_ptr<ThinkerBase> holder) :
 			ThinkerPresentBase (holder)
 		{
 		}
@@ -256,8 +245,8 @@ public:
 		typename Thinker::SnapshotPointer createSnapshot() const
 		{
 			hopefullyCurrentThreadIsManager(HERE);
-			SnapshotPointerBase* allocatedSnapshot (createSnapshotBase());
-            SnapshotPointer result (*cast_hopefully<SnapshotPointer*>(allocatedSnapshot, HERE));
+            SnapshotPointerBase * allocatedSnapshot (createSnapshotBase());
+            SnapshotPointer result (*cast_hopefully<SnapshotPointer *>(allocatedSnapshot, HERE));
 			delete allocatedSnapshot;
 			return result;
 		}
@@ -283,18 +272,18 @@ public:
         Snapshottable<DataType> (d)
 	{
 	}
-    Thinker (ThinkerManager& mgr, QSharedDataPointer<DataType> d) :
+    Thinker (ThinkerManager & mgr, QSharedDataPointer<DataType> d) :
 		ThinkerBase (mgr),
         Snapshottable<DataType> (d)
 	{
 	}
 
-	Thinker (const DataType &d) :
+    Thinker (DataType const & d) :
 		ThinkerBase (),
         Snapshottable<DataType> (d)
 	{
 	}
-	Thinker (ThinkerManager& mgr, const DataType& d) :
+    Thinker (ThinkerManager & mgr, DataType const & d) :
 		ThinkerBase (mgr),
         Snapshottable<DataType> (d)
 	{
@@ -305,13 +294,13 @@ public:
         Snapshottable<DataType> ()
 	{
 	}
-	Thinker  (ThinkerManager& mgr) :
+    Thinker  (ThinkerManager & mgr) :
 		ThinkerBase (mgr),
         Snapshottable<DataType> ()
 	{
 	}
 
-	/* virtual */ ~Thinker ()
+    virtual ~Thinker () override
 	{
 	}
 
@@ -330,11 +319,11 @@ public:
 	// from Snapshottable, but want readable() and writable() to
 	// be public.
 
-	const DataTypeParam& readable(const codeplace& cp) const
+    const DataTypeParam & readable(codeplace const & cp) const
 	{
         return Snapshottable<DataType>::readable(cp);
 	}
-	DataTypeParam& writable(const codeplace& cp)
+    DataTypeParam & writable(codeplace const & cp)
 	{
         return Snapshottable<DataType>::writable(cp);
 	}
@@ -342,11 +331,11 @@ public:
 	// This will cause the any asserts to indicate a failure in thinker.h instead
 	// line instead of the offending line in the caller... not as good... see hoist
 	// documentation http://hostilefork.com/hoist/
-	const DataTypeParam& readable() const
+    const DataTypeParam & readable() const
 	{
 		return readable(HERE);
 	}
-	DataTypeParam& writable()
+    DataTypeParam & writable()
 	{
 		return writable(HERE);
 	}
