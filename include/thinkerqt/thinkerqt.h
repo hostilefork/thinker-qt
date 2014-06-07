@@ -25,14 +25,19 @@
 #include "thinker.h"
 #include "thinkermanager.h"
 
+// If for convenience you just want one on-demand manager, this provides an analogue
+// to QtConcurrent::run
+
+#if not THINKERQT_EXPLICIT_MANAGER
 namespace ThinkerQt {
 
-template<class ThinkerType, class... Args>
-typename ThinkerType::Present run(Args&&... args)
-{
-    return ThinkerManager::globalInstance()->run(unique_ptr<ThinkerType>(new ThinkerType (std::forward<Args>(args)...)));
+    template<class ThinkerType, class... Args>
+    typename ThinkerType::Present run(Args&&... args) {
+        return ThinkerManager::getGlobalManager().run(unique_ptr<ThinkerType>(
+            new ThinkerType (std::forward<Args>(args)...))
+        );
+    }
 }
-
-};
+#endif
 
 #endif

@@ -245,43 +245,10 @@ public:
 	// that you passed to the constructor.
 
 public:
-	// A Snapshottable type is only default-constructible if DataType
-	// is also default-constructible.  C++ lacks "inherited constructors"
-	//
-	//     http://stackoverflow.com/questions/347358/inheriting-constructors
-
-	Snapshottable () :
+    template<class ...Args>
+    Snapshottable(Args && ...args) :
 		SnapshottableBase (),
-        d (QSharedDataPointer<DataType> (new DataType ()))
-	{
-	}
-
-	// This constructor offers slightly more syntactical convenience
-	// so that you can write:
-	//
-	//     Snapshottable< DataType >(DataType (...));
-	//
-	// This convenience comes at the cost of an extra allocation of an
-	// object of type DataType, along with running a copy constructor.
-
-	Snapshottable(const DataType& other) :
-		SnapshottableBase (),
-        d (QSharedDataPointer<DataType>(new DataType (other)))
-	{
-	}
-
-	// This is the most efficient form of construction for types that
-	// are not default constructible:
-	//
-	//     Snapshottable< DataType >(
-	//         QSharedDataPointer< DataType >(new DataType (...))
-	//     );
-	//
-	// ...although it is slightly verbose.
-
-    Snapshottable (QSharedDataPointer<DataType> d) :
-		SnapshottableBase (),
-		d (d)
+        d (QSharedDataPointer<DataType>(new DataType (std::forward<Args>(args)...)))
 	{
 	}
 

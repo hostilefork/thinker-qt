@@ -19,7 +19,7 @@
 // See http://hostilefork.com/thinker-qt/ for more information on this project
 //
 
-#include "thinkerrunner.h"
+#include "thinkerqt/thinkerrunner.h"
 #include "thinkerqt/thinkerpresent.h"
 #include "thinkerqt/thinkermanager.h"
 

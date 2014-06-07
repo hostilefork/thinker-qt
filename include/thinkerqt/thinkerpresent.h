@@ -62,8 +62,8 @@ protected:
 
 protected:
 	// Is this a good idea to export in the API?
-	ThinkerBase& getThinkerBase();
-	const ThinkerBase& getThinkerBase() const;
+    ThinkerBase & getThinkerBase();
+    const ThinkerBase & getThinkerBase() const;
 
 public:
 	// QFuture thinks of returning a list of results, whereas we snapshot

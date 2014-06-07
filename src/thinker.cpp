@@ -21,12 +21,13 @@
 
 #include "thinkerqt/thinker.h"
 #include "thinkerqt/thinkermanager.h"
-#include "thinkerrunner.h"
+#include "thinkerqt/thinkerrunner.h"
 
 //
 // Thinker
 //
 
+#if THINKERQT_EXPLICIT_MANAGER
 ThinkerBase::ThinkerBase (ThinkerManager& mgr) :
 	QObject (),
 	state (ThinkerOwnedByRunner),
@@ -34,14 +35,15 @@ ThinkerBase::ThinkerBase (ThinkerManager& mgr) :
 {
 	getManager().hopefullyCurrentThreadIsManager(HERE);
 }
-
+#else
 ThinkerBase::ThinkerBase () :
-	QObject (),
-	state (ThinkerOwnedByRunner),
-	mgr (*ThinkerManager::globalInstance())
+    QObject (),
+    state (ThinkerOwnedByRunner),
+    mgr (ThinkerManager::getGlobalManager())
 {
-	getManager().hopefullyCurrentThreadIsManager(HERE);
+    getManager().hopefullyCurrentThreadIsManager(HERE);
 }
+#endif
 
 ThinkerManager& ThinkerBase::getManager() const
 {
@@ -98,15 +100,6 @@ void ThinkerBase::pollForStopException(unsigned long time) const
     }
 }
 #endif
-
-void ThinkerBase::onResumeThinking()
-{
-	hopefullyCurrentThreadIsThink(HERE);
-
-    shared_ptr<ThinkerRunner> runner (getManager().maybeGetRunnerForThinker(*this));
-    hopefully(runner != nullptr, HERE);
-	resume();
-}
 
 ThinkerBase::~ThinkerBase ()
 {

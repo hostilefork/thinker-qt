@@ -31,33 +31,9 @@
 
 #include "thinkerqt/thinker.h"
 
-class ThinkerRunner;
+class ThinkerRunnerHelper;
 class ThinkerManager;
 class ThinkerRunnerProxy;
-
-// pretty much every thread object needs a member who was
-// created in the thread's run() method, and thus dispatches
-// messages within the thread's context
-class ThinkerRunnerHelper : public QObject
-{
-	Q_OBJECT
-
-private:
-	ThinkerRunner& runner;
-
-public:
-	ThinkerRunnerHelper (ThinkerRunner& runner);
-	~ThinkerRunnerHelper ();
-
-public:
-	bool hopefullyCurrentThreadIsRun(const codeplace& cp) const
-	{
-		return hopefully(QThread::currentThread() == thread(), cp);
-	}
-public slots:
-	void markFinished();
-	void queuedQuit();
-};
 
 class ThinkerRunner : public QEventLoop
 {
@@ -78,13 +54,13 @@ private:
 	};
 
 public:
-    ThinkerRunner (shared_ptr< ThinkerBase > holder);
-	virtual ~ThinkerRunner ();
+    ThinkerRunner (shared_ptr<ThinkerBase> holder);
+    virtual ~ThinkerRunner () override;
 
 public:
-	ThinkerManager& getManager() const;
-	ThinkerBase& getThinker();
-	const ThinkerBase& getThinker() const;
+    ThinkerManager & getManager() const;
+    ThinkerBase & getThinker();
+    const ThinkerBase & getThinker() const;
 
 public:
 	void doThreadPushIfNecessary();
@@ -168,6 +144,32 @@ private:
 	friend QTextStream& operator<< (QTextStream& o, const State& state);
 	friend class ThinkerRunnerHelper;
 };
+
+
+// pretty much every thread object needs a member who was
+// created in the thread's run() method, and thus dispatches
+// messages within the thread's context
+class ThinkerRunnerHelper : public QObject
+{
+    Q_OBJECT
+
+private:
+    ThinkerRunner & runner;
+
+public:
+    ThinkerRunnerHelper (ThinkerRunner & runner);
+    ~ThinkerRunnerHelper () override;
+
+public:
+    bool hopefullyCurrentThreadIsRun(const codeplace& cp) const
+    {
+        return hopefully(QThread::currentThread() == runner.getThinker().thread(), cp);
+    }
+public slots:
+    void markFinished();
+    void queuedQuit();
+};
+
 
 //
 // ThinkerRunnerProxy

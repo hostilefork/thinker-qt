@@ -22,20 +22,23 @@
 #include <QThreadPool>
 #include <QMutexLocker>
 
-#include "thinkerrunner.h"
+#include "thinkerqt/thinkerrunner.h"
 #include "thinkerqt/thinkermanager.h"
-
-//
-// Q_GLOBAL_STATIC is an Internal Qt Macro, not part of the public API
-// You can use it... but it may change without notice in future versions
-//
-
-Q_GLOBAL_STATIC(ThinkerManager, theInstance)
 
 
 //
 // ThinkerManager
 //
+
+#if not THINKERQT_EXPLICIT_MANAGER
+ThinkerManager & ThinkerManager::getGlobalManager() {
+    // This may depend on C++11 guarantees if you call this from more than one thread
+    // http://stackoverflow.com/questions/9608257/
+    static ThinkerManager globalInstance;
+    return globalInstance;
+}
+#endif
+
 
 ThinkerManager::ThinkerManager () :
 	QObject (),
@@ -77,11 +80,6 @@ bool ThinkerManager::hopefullyThreadIsThinker(const QThread& thread, const codep
 bool ThinkerManager::hopefullyCurrentThreadIsThinker(const codeplace& cp)
 {
 	return hopefullyThreadIsThinker(*QThread::currentThread(), cp);
-}
-
-ThinkerManager *ThinkerManager::globalInstance()
-{
-	return theInstance();
 }
 
 void ThinkerManager::createRunnerForThinker(shared_ptr<ThinkerBase> holder, const codeplace& cp)
@@ -259,8 +257,11 @@ void ThinkerManager::addToThreadMap(shared_ptr<ThinkerRunner> runner, QThread& t
 	threadMap.insert(&thread, runner);
 }
 
-void ThinkerManager::removeFromThreadMap(shared_ptr<ThinkerRunner> /*runner*/, QThread& thread)
-{
+void ThinkerManager::removeFromThreadMap(
+	shared_ptr<ThinkerRunner> runner,
+	QThread& thread
+) {
+	Q_UNUSED(runner);
 	QMutexLocker locker (&mapsMutex);
 	hopefully(threadMap.remove(&thread) == 1, HERE);
 }
@@ -323,3 +324,4 @@ ThinkerManager::~ThinkerManager()
 	if (anyRunners)
 		QThreadPool::globalInstance()->waitForDone();
 }
+

@@ -1,8 +1,11 @@
+QT       += core gui widgets
+
 THINKER_SRC = ../../src
 THINKER_INC = ../../include/thinkerqt
 
 HEADERS       = mandelbrotwidget.h \
-                renderthread.h
+                renderthread.h \
+    ../../include/thinkerqt/thinkerrunner.h
 SOURCES       = main.cpp \
                 mandelbrotwidget.cpp \
                 renderthread.cpp

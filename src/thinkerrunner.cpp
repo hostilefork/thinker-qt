@@ -20,8 +20,9 @@
 //
 
 #include <QMutexLocker>
+#include <QDebug>
 
-#include "thinkerrunner.h"
+#include "thinkerqt/thinkerrunner.h"
 #include "thinkerqt/thinkermanager.h"
 
 // operator<< for ThinkerRunner::State
@@ -120,7 +121,7 @@ ThinkerRunner::ThinkerRunner(shared_ptr<ThinkerBase> holder) :
 	holder (holder),
 	helper ()
 {
-/*	hopefully(not holder.isNull(), HERE); */
+    hopefully(holder != nullptr, HERE);
 
 	// need to check this, because we will later ask the manager to move the
 	// Thinker to the thread of the QRunnable (when we find out what that thread
@@ -130,7 +131,20 @@ ThinkerRunner::ThinkerRunner(shared_ptr<ThinkerBase> holder) :
 	hopefullyCurrentThreadIsManager(HERE);
 	hopefully(getThinker().thread() == QThread::currentThread(), HERE);
 
-	connect(this, SIGNAL(resumeThinking()), &getThinker(), SLOT(onResumeThinking()), Qt::QueuedConnection);
+	// Formerly this code would use a queued connection to get a paused thinker
+	// whose run loop had been taken off the stack to restart.  When the
+	// approach changed to using pooled threads rather than giving each
+	// thinker its own, they wait by pausing in the run loop and getting
+	// an event signaled.  However if queued connections were needed to speak
+	// with the thinker for some reason this would be the place to do:
+	//
+    //    connect(
+    //        this, SIGNAL(...),
+    //        &getThinker(), SLOT(...),
+    //        Qt::QueuedConnection
+    //    );
+    //
+    // That would also maintain Qt4 compatibility using string-based connect
 }
 
 bool ThinkerRunner::hopefullyCurrentThreadIsManager(const codeplace& cp) const {
@@ -170,11 +184,6 @@ void ThinkerRunner::doThreadPushIfNecessary()
 
 bool ThinkerRunner::runThinker()
 {
-	helper = QSharedPointer<ThinkerRunnerHelper> (new ThinkerRunnerHelper(*this));
-
-	connect(this, SIGNAL(breakEventLoop()), helper.data(), SLOT(queuedQuit()), Qt::QueuedConnection);
-	connect(&getThinker(), SIGNAL(done()), helper.data(), SLOT(markFinished()), Qt::DirectConnection);
-
 	stateMutex.lock();
 
 	if (state == RunnerQueuedButPaused) {
@@ -183,6 +192,15 @@ bool ThinkerRunner::runThinker()
 	state.hopefullyInSet(RunnerQueued, RunnerCanceled, HERE);
 
 	if (state == RunnerQueued) {
+        // Create from within the thread's run() in order to make sure that
+        // our helper object has the thread affinity of the new executing
+        // thread, not of the QThread object that spawned the execution
+        helper = QSharedPointer<ThinkerRunnerHelper> (new ThinkerRunnerHelper(*this));
+
+        // Maintain Qt4 compatibility using string-based connect
+        connect(this, SIGNAL(breakEventLoop()), helper.data(), SLOT(queuedQuit()), Qt::QueuedConnection);
+        connect(&getThinker(), SIGNAL(done()), helper.data(), SLOT(markFinished()), Qt::DirectConnection);
+
 		QThread* originalThinkerThread (getThinker().thread());
 		// Now that we know what thread the Thinker will be running on, we ask the
 		// main thread to push it onto our current thread allocated to us by the pool
@@ -212,7 +230,7 @@ bool ThinkerRunner::runThinker()
 		bool firstRun (true);
 
 #ifndef Q_NO_EXCEPTIONS
-		bool possiblyAbleToContinue (false);
+        bool possiblyAbleToContinue (true);
 #endif
 
 		while (not didCancelOrFinish) {
@@ -282,13 +300,14 @@ bool ThinkerRunner::runThinker()
 
 		getThinker().beforeThreadDetach();
 
-		// For symmetry in constructor/destructor threading, we push the Thinker back to the
-		// thread it was initially defined on.  This time we can do it directly instead of asking
-		// that thread to do it for us.
-		if (true) {
-			getThinker().moveToThread(originalThinkerThread);
-			hopefully(getThinker().thread() == originalThinkerThread, HERE);
-		}
+        // We no longer need the helper object
+        helper.clear();
+
+        // For symmetry in constructor/destructor threading, we push the Thinker back to the
+        // thread it was initially defined on.  This time we can do it directly instead of asking
+        // that thread to do it for us.
+        getThinker().moveToThread(originalThinkerThread);
+        hopefully(getThinker().thread() == originalThinkerThread, HERE);
 
 		stateMutex.lock();
 	}
@@ -296,9 +315,6 @@ bool ThinkerRunner::runThinker()
 	state.hopefullyInSet(RunnerCanceled, RunnerCanceling, RunnerFinished, HERE);
 	bool wasCanceled (state != RunnerFinished);
 	stateMutex.unlock();
-
-	// We no longer need the helper object
-	helper.clear();
 
 	return wasCanceled;
 }
@@ -387,8 +403,7 @@ void ThinkerRunner::requestResumeCore(bool isCanceledOkay, const codeplace& cp)
 		// do nothing
 	} else {
 		state.hopefullyTransition(RunnerPaused, RunnerResuming, cp);
-		stateWasChanged.wakeOne(); // only one person should be waiting on this, max...
-		emit resumeThinking();
+		stateWasChanged.wakeOne(); // only one should be waiting, max...
 	}
 }
 

@@ -50,11 +50,13 @@ class ThinkerManager : public QObject {
 	Q_OBJECT
 
 public:
-	ThinkerManager ();
-	virtual ~ThinkerManager();
+    explicit ThinkerManager ();
+    ThinkerManager (ThinkerManager const & other) = delete;
+    ~ThinkerManager() override;
 
-public:
-	static ThinkerManager* globalInstance();
+#if not THINKERQT_EXPLICIT_MANAGER
+    static ThinkerManager & getGlobalManager ();
+#endif
 
 public:
     bool hopefullyThreadIsManager(QThread const & thread, codeplace const & cp);
@@ -66,6 +68,14 @@ public:
 
 public:
     ThinkerBase const * getThinkerForThreadMaybeNull(QThread const & thread);
+
+    ThinkerBase & getThinkerBase(ThinkerPresentBase & present) {
+        return present.getThinkerBase();
+    }
+
+    ThinkerBase const & getThinkerBase(ThinkerPresentBase const & present) {
+        return present.getThinkerBase();
+    }
 
 	// It used to be that Thinkers (QObjects) were created on the Manager thread and then pushed
 	// to a thread of their own during the Run.  Since Run now queues, that push is deferred.  We
@@ -138,7 +148,7 @@ public:
     void ensureThinkersPaused(codeplace const & cp);
     void ensureThinkersResumed(codeplace const & cp);
 
-#ifndef THINKERQT_REQUIRE_CODEPLACE
+#if not THINKERQT_REQUIRE_CODEPLACE
 	// This will cause the any asserts to indicate a failure in thinkermanager.h instead
 	// line instead of the offending line in the caller... not as good... see hoist
 	// documentation http://hostilefork.com/hoist/

@@ -62,8 +62,11 @@ private:
 	};
 
 public:
+#if THINKERQT_EXPLICIT_MANAGER
     ThinkerBase (ThinkerManager & mgr);
-	ThinkerBase ();
+#else
+    ThinkerBase ();
+#endif
 	virtual ~ThinkerBase ();
 
 public:
@@ -101,8 +104,8 @@ protected:
 	// These overrides provide added checking and also signal
 	// "progress" when the unlock runs.
 
-    virtual void lockForWrite(codeplace const & cp) override;
-    virtual void unlock(codeplace const & cp) override;
+    virtual void lockForWrite(codeplace const & cp) Q_DECL_OVERRIDE;
+    virtual void unlock(codeplace const & cp) Q_DECL_OVERRIDE;
 
 #ifndef THINKERQT_REQUIRE_CODEPLACE
 	// This will cause the any asserts to indicate a failure in thinker.h instead
@@ -128,9 +131,6 @@ signals:
 	// thinking to involve signal/slot processing.
 
 	void done();
-
-private slots:
-	void onResumeThinking();
 
 protected:
 	virtual void start() = 0;
@@ -175,7 +175,7 @@ private:
 // themselves...
 
 template<class DataTypeParam>
-class Thinker : public ThinkerBase, virtual private Snapshottable<DataTypeParam>
+class Thinker : public ThinkerBase, private Snapshottable<DataTypeParam>
 {
 public:
 	typedef DataTypeParam DataType;
@@ -190,10 +190,10 @@ public:
 		{
 		}
 
-		Present (ThinkerPresentBase& base) :
+        Present (ThinkerPresentBase & base) :
 			ThinkerPresentBase (base)
 		{
-            static_cast<void>(cast_hopefully<Present*>(&base, HERE));
+            static_cast<void>(cast_hopefully<Thinker *>(&ThinkerPresentBase::getThinkerBase(), HERE));
 		}
 
         Present (Present const & other) :
@@ -201,7 +201,7 @@ public:
 		{
 		}
 
-        virtual ~Present () override
+        virtual ~Present () Q_DECL_OVERRIDE
 		{
 		}
 
@@ -209,6 +209,7 @@ public:
         Present (shared_ptr<ThinkerBase> holder) :
 			ThinkerPresentBase (holder)
 		{
+            static_cast<void>(cast_hopefully<Thinker *>(&ThinkerPresentBase::getThinkerBase(), HERE));
 		}
 		friend class ThinkerManager;
 
@@ -263,44 +264,38 @@ public:
 	};
 
 public:
-	// This is the most efficient and general constructor, which does not
-	// require your state object to be default-constructible.  See notes in
-	// snapshottable about the other constructor variants.
-
-    Thinker (QSharedDataPointer<DataType> d) :
-		ThinkerBase (),
-        Snapshottable<DataType> (d)
-	{
-	}
-    Thinker (ThinkerManager & mgr, QSharedDataPointer<DataType> d) :
+#if THINKERQT_EXPLICIT_MANAGER
+    Thinker (ThinkerManager & mgr) :
 		ThinkerBase (mgr),
-        Snapshottable<DataType> (d)
+        Snapshottable<DataType> ()
 	{
 	}
 
-    Thinker (DataType const & d) :
-		ThinkerBase (),
-        Snapshottable<DataType> (d)
-	{
-	}
-    Thinker (ThinkerManager & mgr, DataType const & d) :
-		ThinkerBase (mgr),
-        Snapshottable<DataType> (d)
-	{
-	}
+    template<class... Args>
+    Thinker (ThinkerManager & mgr, Args &&... args) :
+        ThinkerBase (mgr),
+        Snapshottable<DataType> (std::forward<Args>(args)...)
+    {
+    }
+
+#else
 
 	Thinker () :
 		ThinkerBase (),
         Snapshottable<DataType> ()
 	{
 	}
-    Thinker  (ThinkerManager & mgr) :
-		ThinkerBase (mgr),
-        Snapshottable<DataType> ()
-	{
-	}
 
-    virtual ~Thinker () override
+    template<class... Args>
+    Thinker (Args &&... args) :
+        ThinkerBase (),
+        Snapshottable<DataType> (std::forward<Args>(args)...)
+    {
+    }
+
+#endif
+
+    virtual ~Thinker () Q_DECL_OVERRIDE
 	{
 	}
 
@@ -319,22 +314,15 @@ public:
 	// from Snapshottable, but want readable() and writable() to
 	// be public.
 
-    const DataTypeParam & readable(codeplace const & cp) const
+    const DataTypeParam & readable() const
 	{
-        return Snapshottable<DataType>::readable(cp);
+        return Snapshottable<DataType>::readable();
 	}
     DataTypeParam & writable(codeplace const & cp)
 	{
         return Snapshottable<DataType>::writable(cp);
 	}
 #ifndef THINKERQT_REQUIRE_CODEPLACE
-	// This will cause the any asserts to indicate a failure in thinker.h instead
-	// line instead of the offending line in the caller... not as good... see hoist
-	// documentation http://hostilefork.com/hoist/
-    const DataTypeParam & readable() const
-	{
-		return readable(HERE);
-	}
     DataTypeParam & writable()
 	{
 		return writable(HERE);
