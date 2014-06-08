@@ -50,12 +50,19 @@ class ThinkerManager : public QObject {
 	Q_OBJECT
 
 public:
-    explicit ThinkerManager ();
     ThinkerManager (ThinkerManager const & other) = delete;
     ~ThinkerManager() override;
 
 #if not THINKERQT_EXPLICIT_MANAGER
+private:
+    // only one point of creation of the manager
+    // all Thinkers assume it's the one you meant (mirrors QtConcurrent)
+    explicit ThinkerManager ();
+public:
     static ThinkerManager & getGlobalManager ();
+#else
+    // many potential managers created
+    explicit ThinkerManager ();
 #endif
 
 public:
