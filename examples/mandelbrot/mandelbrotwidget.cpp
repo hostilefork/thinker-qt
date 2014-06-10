@@ -194,7 +194,7 @@ void MandelbrotWidget::updatePixmap()
     if (!lastDragPos.isNull())
         return;
 
-    RenderThinker::SnapshotPointer snap = watcher.createSnapshot();
+    RenderThinker::Snapshot snap = watcher.createSnapshot();
     if (snap->hasImage()) {
         pixmap = QPixmap::fromImage(snap->getImage());
         pixmapScale = snap->getScaleFactor();
