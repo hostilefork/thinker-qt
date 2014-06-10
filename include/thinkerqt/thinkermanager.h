@@ -104,7 +104,7 @@ private:
 
 public:
 	template<class ThinkerType>
-    typename ThinkerType::Present run(unique_ptr<ThinkerType>&& holder, codeplace const & cp) {
+    typename ThinkerType::Present run(unique_ptr<ThinkerType> holder, codeplace const & cp) {
         // We only want to run the destructor of the Thinker on the thread where
         // it was created.  But if we use shared_ptr to a Thinker then that means
         // we are surrendering the control of which thread will actually be the
@@ -127,7 +127,7 @@ public:
 	}
 
     template<class ThinkerType>
-    ThinkerPresentBase runBase(unique_ptr<ThinkerType>&& holder, codeplace const & cp) {
+    ThinkerPresentBase runBase(unique_ptr<ThinkerType> holder, codeplace const & cp) {
         // We only want to run the destructor of the Thinker on the thread where
         // it was created.  But if we use shared_ptr to a Thinker then that means
         // we are surrendering the control of which thread will actually be the
