@@ -179,7 +179,7 @@ class Thinker : public ThinkerBase, private Snapshottable<DataTypeParam>
 {
 public:
 	typedef DataTypeParam DataType;
-    typedef typename Snapshottable<DataType>::SnapshotPointer SnapshotPointer;
+    typedef typename Snapshottable<DataType>::Snapshot Snapshot;
 
 public:
 	class Present : public ThinkerPresentBase
@@ -214,11 +214,11 @@ public:
 		friend class ThinkerManager;
 
 	public:
-		typename Thinker::SnapshotPointer createSnapshot() const
+        typename Thinker::Snapshot createSnapshot() const
 		{
 			hopefullyCurrentThreadIsManager(HERE);
-			SnapshotPointerBase* allocatedSnapshot (createSnapshotBase());
-            SnapshotPointer result (*cast_hopefully<SnapshotPointer*>(allocatedSnapshot, HERE));
+            SnapshotBase* allocatedSnapshot (createSnapshotBase());
+            Snapshot result (*cast_hopefully<Snapshot*>(allocatedSnapshot, HERE));
 			delete allocatedSnapshot;
 			return result;
 		}
@@ -243,11 +243,11 @@ public:
 		}
 
 	public:
-		typename Thinker::SnapshotPointer createSnapshot() const
+        typename Thinker::Snapshot createSnapshot() const
 		{
 			hopefullyCurrentThreadIsManager(HERE);
-            SnapshotPointerBase * allocatedSnapshot (createSnapshotBase());
-            SnapshotPointer result (*cast_hopefully<SnapshotPointer *>(allocatedSnapshot, HERE));
+            SnapshotBase * allocatedSnapshot (createSnapshotBase());
+            Snapshot result (*cast_hopefully<Snapshot *>(allocatedSnapshot, HERE));
 			delete allocatedSnapshot;
 			return result;
 		}
@@ -304,7 +304,7 @@ private:
 	// thinker itself.
 
 	/*template< class T >*/ friend class Present;
-	SnapshotPointer makeSnapshot()
+    Snapshot makeSnapshot()
 	{
         return Snapshottable<DataType>::makeSnapshot();
 	}

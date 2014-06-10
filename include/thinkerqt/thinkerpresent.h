@@ -74,7 +74,7 @@ public:
 	/* QList<T> results() const; */
 	/* bool isResultReadyAt(int index) const; */
 
-	SnapshotPointerBase* createSnapshotBase() const;
+    SnapshotBase* createSnapshotBase() const;
 
 public:
 	// The isStarted() and isRunning() methods of QFuture are not

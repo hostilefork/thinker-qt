@@ -219,7 +219,7 @@ void ThinkerPresentBase::waitForFinished()
 	}
 }
 
-SnapshotPointerBase* ThinkerPresentBase::createSnapshotBase() const
+SnapshotBase* ThinkerPresentBase::createSnapshotBase() const
 {
 	hopefullyCurrentThreadIsManager(HERE);
 

@@ -88,15 +88,15 @@ public:
 // QSharedDataPointer to your concrete type--not base type.
 //
 
-class SnapshotPointerBase
+class SnapshotBase
 {
 public:
 	virtual void clear() = 0;
 	virtual const SnapshottableData* dataBase() const = 0;
 
-    // Avoids "deleting object of abstract class type 'SnapshotPointerBase' which
+    // Avoids "deleting object of abstract class type 'SnapshotBase' which
     // has non-virtual destructor will cause undefined behavior" error.
-    virtual ~SnapshotPointerBase() {}
+    virtual ~SnapshotBase() {}
 
 private:
 	// (...there should be a member put here...)
@@ -133,7 +133,7 @@ public:
 
 	// TrollTech uses "create" when applied to factory-style things
 	// Note: http://doc.trolltech.com/4.6/functions.html
-	virtual SnapshotPointerBase* createSnapshotBase() const = 0;
+    virtual SnapshotBase* createSnapshotBase() const = 0;
 
 protected:
         // It's true that the shared data pointer protects us across threads
@@ -174,23 +174,25 @@ public:
 	typedef DataTypeParam DataType;
 
 public:
-	// SnapshotPointer follows the convention set up by QFuture and friends
+    // Snapshot follows the convention set up by QFuture and friends
 	// of sharing inside the type, as well as tolerating a default construction
+    // Hence a Snapshot is actually a SnapshotPointer or a SharedSnapshot.
+    // But that's wordy, as would QSharedFuture be.  We use the short name.
 
-	class SnapshotPointer : public SnapshotPointerBase
+    class Snapshot : public SnapshotBase
 	{
 	public:
-		SnapshotPointer () :
+        Snapshot () :
 			d ()
 		{
 		}
 
-		SnapshotPointer (const SnapshotPointer& other) :
+        Snapshot (const Snapshot& other) :
 			d (other.d)
 		{
 		}
 
-		SnapshotPointer& operator= (const SnapshotPointer & other)
+        Snapshot& operator= (const Snapshot & other)
 		{
 			if (this != &other) {
 				d = other.d;
@@ -198,12 +200,12 @@ public:
 			return *this;
 		}
 
-		~SnapshotPointer ()
+        ~Snapshot ()
 		{
 		}
 
 	protected:
-        SnapshotPointer (QSharedDataPointer<DataType> initialD) :
+        Snapshot (QSharedDataPointer<DataType> initialD) :
 			d (initialD)
 		{
 		}
@@ -257,17 +259,17 @@ public:
 	}
 
 public:
-	SnapshotPointer createSnapshot() const
+    Snapshot createSnapshot() const
 	{
 		dLock.lockForRead();
-		SnapshotPointer result (d);
+        Snapshot result (d);
 		dLock.unlock();
 		return result;
 	}
 
-    virtual SnapshotPointerBase* createSnapshotBase() const override
+    virtual SnapshotBase* createSnapshotBase() const override
 	{
-		return new SnapshotPointer (createSnapshot());
+        return new Snapshot (createSnapshot());
 	}
 
 protected:

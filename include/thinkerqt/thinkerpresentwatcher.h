@@ -59,7 +59,7 @@ public:
 	ThinkerPresentBase presentBase();
 
 public:
-	SnapshotPointerBase* createSnapshotBase() const
+    SnapshotBase* createSnapshotBase() const
 		{ return present.createSnapshotBase(); }
 
 public:
