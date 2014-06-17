@@ -1,5 +1,5 @@
 //
-// Defs.h
+// defs.h
 // This file is part of Thinker-Qt
 // Copyright (C) 2010 HostileFork.com
 //
@@ -22,18 +22,21 @@
 #ifndef THINKERQT_DEFS_H
 #define THINKERQT_DEFS_H
 
-// Old versions of Thinker-Qt had a flag THINKERQT_USE_STD_SHARED_PTR, for this:
-//     http://stackoverflow.com/questions/11150225/generalizing-shared-pointers-and-qsharedpointerdata-vs-shared-ptrget
-// I'm currently on to C++11 with my projects, so favor shared_ptr over QSharedPointer
+// Old versions of Thinker-Qt had flag THINKERQT_USE_STD_SHARED_PTR, for this:
+//
+//     http://stackoverflow.com/questions/11150225/
+//
+// But I'm currently on to C++11 with my projects, so using std::shared_ptr
 
 #include <memory>
 using std::shared_ptr;
 using std::unique_ptr;
+using std::make_shared;
 
 #if THINKERQT_USE_HOIST
 
-// The hoist library is something that I use as an alternative system for reporting
-// locations in source to assertions.  The project page is here:
+// The hoist library is something that I use as an alternative system for
+// reporting locations in source to assertions.  The project page is here:
 //
 // http://hostilefork.com/hoist/
 //

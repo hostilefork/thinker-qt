@@ -1,7 +1,7 @@
 //
-// SignalThrottler.h
+// signalthrottler.h
 // This file is part of Thinker-Qt
-// Copyright (C) 2010 HostileFork.com
+// Copyright (C) 2010-2014 HostileFork.com
 //
 // Thinker-Qt is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -49,49 +49,59 @@
 
 class SignalThrottler : public QObject
 {
-	Q_OBJECT
+    Q_OBJECT
 
 public:
-	SignalThrottler (unsigned int milliseconds = 0, QObject* parent = NULL);
-	~SignalThrottler ();
+    SignalThrottler (int milliseconds = 0, QObject* parent = nullptr);
+
+    ~SignalThrottler () override;
+
 
 public:
-	void setMillisecondsDefault(unsigned int milliseconds);
-	void emitThrottled(unsigned int milliseconds);
+    void setMillisecondsDefault (int milliseconds);
 
-	// Because we are dealing with a delay, it may be the case that
-	// we don't want the signal to happen.  Postpone clears any
-	// pending events and returns whether an event was pending
-	bool postpone();
+    void emitThrottled (int milliseconds);
+
+    // Because we are dealing with a delay, it may be the case that
+    // we don't want the signal to happen.  Postpone clears any
+    // pending events and returns whether an event was pending
+    bool postpone ();
+
 
 public slots:
-	// This function is the slot you call or connect an unthrottled signal
-	// to.  It sort of defeats the point a bit to connect an unthrottled
-	// signal here which happens frequently rather than call it as a
-	// function because you'll still pay for the event queue processing
-	void emitThrottled();
+    // This function is the slot you call or connect an unthrottled signal
+    // to.  It sort of defeats the point a bit to connect an unthrottled
+    // signal here which happens frequently rather than call it as a
+    // function because you'll still pay for the event queue processing
+    void emitThrottled ();
+
 
 signals:
-	void throttled();
+    void throttled ();
+
 
 private slots:
-	void onTimeout();
+    void onTimeout ();
+
 
 private:
-	// A signal throttler is not thread safe if you allocate the object with
-	// a parent.  It assumes in that case that all emitThrottled calls will
-	// be done from the parent QObject::thread(), and checks this with
-	// an assertion.  If there is no parent then a mutex is allocated and
-	// calls to emitThrottled will be thread safe.
-	void enterThreadCheck();
-	void exitThreadCheck();
+    // A signal throttler is not thread safe if you allocate the object with
+    // a parent.  It assumes in that case that all emitThrottled calls will
+    // be done from the parent QObject::thread(), and checks this with
+    // an assertion.  If there is no parent then a mutex is allocated and
+    // calls to emitThrottled will be thread safe.
+
+    void enterThreadCheck ();
+
+    void exitThreadCheck ();
+
 
 private:
-	QTime lastEmit; // when was the last emit?  (null if never)
-	QTime nextEmit; // when is the next emit scheduled?  (null if none)
-	QAtomicInt millisecondsDefault;
-	QTimer timer;
-	QSharedPointer<QMutex> timerMutex; // only allocated if no parent given...
+    QTime _lastEmit; // when was the last emit?  (null if never)
+    QTime _nextEmit; // when is the next emit scheduled?  (null if none)
+    QAtomicInt _millisecondsDefault;
+    QTimer _timer;
+    QSharedPointer<QMutex> _timerMutex; // only if no parent given...
 };
 
 #endif

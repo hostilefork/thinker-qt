@@ -1,7 +1,7 @@
 //
-// SignalThrottler.cpp
+// signalthrottler.cpp
 // This file is part of Thinker-Qt
-// Copyright (C) 2010 HostileFork.com
+// Copyright (C) 2010-2014 HostileFork.com
 //
 // Thinker-Qt is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -21,98 +21,116 @@
 
 #include "thinkerqt/signalthrottler.h"
 
-SignalThrottler::SignalThrottler (unsigned int milliseconds, QObject* parent) :
-	QObject (parent),
-	millisecondsDefault (cast_hopefully<int>(milliseconds, HERE)),
-    timer (),
-	timerMutex (NULL == parent ? new QMutex () : NULL)
+
+SignalThrottler::SignalThrottler (
+    int milliseconds,
+    QObject * parent
+) :
+    QObject (parent),
+    _millisecondsDefault (milliseconds),
+    _timer (),
+    _timerMutex (nullptr == parent ? new QMutex () : nullptr)
 {
-	timer.setSingleShot(true);
-	connect(&timer, SIGNAL(timeout()), this, SLOT(onTimeout()));
+    _timer.setSingleShot(true);
+    connect(&_timer, SIGNAL(timeout()), this, SLOT(onTimeout()));
 }
 
-void SignalThrottler::enterThreadCheck()
+
+void SignalThrottler::enterThreadCheck ()
 {
-	if (timerMutex)
-		timerMutex->lock();
-	else
-		hopefully(QThread::currentThread() == thread(), HERE);
+    if (_timerMutex)
+        _timerMutex->lock();
+    else
+        hopefully(QThread::currentThread() == thread(), HERE);
 }
 
-void SignalThrottler::exitThreadCheck()
+
+void SignalThrottler::exitThreadCheck ()
 {
-	if (timerMutex)
-		timerMutex->unlock();
+    if (_timerMutex)
+        _timerMutex->unlock();
 }
 
-void SignalThrottler::setMillisecondsDefault(unsigned int milliseconds)
+
+void SignalThrottler::setMillisecondsDefault (int milliseconds)
 {
-	// This lets you change the throttle but any emits (including one currently
-	// being processed) will possibly use the old value
-	millisecondsDefault.fetchAndStoreRelaxed(cast_hopefully<int>(milliseconds, HERE));
+    // This lets you change the throttle but any emits (including one currently
+    // being processed) will possibly use the old value
+    _millisecondsDefault.fetchAndStoreRelaxed(milliseconds);
 }
+
 
 void SignalThrottler::onTimeout()
 {
-	lastEmit.start();
-	emit throttled();
-	nextEmit = QTime ();
+    _lastEmit.start();
+    emit throttled();
+    _nextEmit = QTime ();
 }
 
-void SignalThrottler::emitThrottled()
+
+void SignalThrottler::emitThrottled ()
 {
-	emitThrottled(millisecondsDefault);
+    emitThrottled(_millisecondsDefault);
 }
 
-void SignalThrottler::emitThrottled(unsigned int milliseconds)
+
+void SignalThrottler::emitThrottled (int milliseconds)
 {
-	// There is some overhead associated with timers, signals, etc.
-	// Don't set a timer if the time we'd wait to signal is less than that value.
-	// TODO: get this number from timing data, perhaps gathered at startup?
-	static const int overheadMsec = 5;
-	QTime currentTime = QTime::currentTime();
+    // There is some overhead associated with _timers, signals, etc.
+    // Don't set _timer if time we'd wait to signal is less than that value.
+    // TODO: get this number from timing data, perhaps gathered at startup?
 
-	enterThreadCheck();
+    static const int overheadMsec = 5;
 
-	QTime worstCaseEmitTime = lastEmit.isNull() ? currentTime : lastEmit.addMSecs(milliseconds);
-	int deltaMilliseconds = currentTime.msecsTo(worstCaseEmitTime);
+    QTime currentTime = QTime::currentTime();
 
-	if (deltaMilliseconds < overheadMsec) {
+    enterThreadCheck();
 
-		if (not nextEmit.isNull()) {
-			timer.stop();
-			nextEmit = QTime ();
-		}
+    QTime worstCaseEmitTime
+        = _lastEmit.isNull()
+        ? currentTime
+        : _lastEmit.addMSecs(milliseconds);
 
-		lastEmit.start();
-		emit throttled();
+    int deltaMilliseconds = currentTime.msecsTo(worstCaseEmitTime);
 
-	} else if (nextEmit.isNull() or (nextEmit > worstCaseEmitTime)) {
+    if (deltaMilliseconds < overheadMsec) {
 
-		timer.start(deltaMilliseconds);
-		nextEmit = worstCaseEmitTime;
-	}
+        if (not _nextEmit.isNull()) {
+            _timer.stop();
+            _nextEmit = QTime ();
+        }
 
-	exitThreadCheck();
+        _lastEmit.start();
+        emit throttled();
+
+    } else if (_nextEmit.isNull() or (_nextEmit > worstCaseEmitTime)) {
+
+        _timer.start(deltaMilliseconds);
+        _nextEmit = worstCaseEmitTime;
+    }
+
+    exitThreadCheck();
 }
 
-bool SignalThrottler::postpone()
+
+bool SignalThrottler::postpone ()
 {
-	bool result (false);
+    bool result = false;
 
-	enterThreadCheck();
+    enterThreadCheck();
 
-	if (not nextEmit.isNull()) {
-		timer.stop();
-		nextEmit = QTime ();
-		result = true;
-	}
+    if (not _nextEmit.isNull()) {
+        _timer.stop();
+        _nextEmit = QTime ();
+        result = true;
+    }
 
-	exitThreadCheck();
+    exitThreadCheck();
 
-	return result;
+    return result;
 }
 
-SignalThrottler::~SignalThrottler()
+
+SignalThrottler::~SignalThrottler ()
 {
 }

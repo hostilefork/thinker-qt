@@ -1,7 +1,7 @@
 //
-// Thinker.h
+// thinker.h
 // This file is part of Thinker-Qt
-// Copyright (C) 2010 HostileFork.com
+// Copyright (C) 2010-2014 HostileFork.com
 //
 // Thinker-Qt is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -48,18 +48,26 @@ class ThinkerPresentWatcherBase;
 // "Thinker" template is due to limitations of Qt's moc in allowing you to
 // declare templated QObjects.  See this article for more information:
 //
-//	http://doc.trolltech.com/qq/qq15-academic.html
+//  http://doc.trolltech.com/qq/qq15-academic.html
 //
 
 class ThinkerBase : public QObject, virtual public SnapshottableBase {
-	Q_OBJECT
+
+    Q_OBJECT
+
+    friend class ThinkerManager;
+    friend class ThinkerPresentWatcherBase;
+    friend class ThinkerPresentBase;
+    friend class ThinkerRunner;
+
 
 private:
-	enum State {
-		ThinkerOwnedByRunner = 0,
-		ThinkerFinished = 1,
-		ThinkerCanceled = 2
-	};
+    enum State {
+        ThinkerOwnedByRunner = 0,
+        ThinkerFinished = 1,
+        ThinkerCanceled = 2
+    };
+
 
 public:
 #if THINKERQT_EXPLICIT_MANAGER
@@ -67,91 +75,92 @@ public:
 #else
     ThinkerBase ();
 #endif
-	virtual ~ThinkerBase ();
+
+    virtual ~ThinkerBase ();
+
 
 public:
-	ThinkerManager & getManager() const;
+    ThinkerManager & getManager() const;
+
 
 public:
-	bool wasPauseRequested(unsigned long time = 0) const;
+    bool wasPauseRequested (unsigned long time = 0) const;
 
-// If exceptions are enabled, you can use this and it will throw an exception to the
-// internal thread loop boilerplate on a pause request; only appropriate for
-// non-continuable thinkers to use...
+// If exceptions are enabled, you can use this and it will throw an exception
+// to the internal thread loop boilerplate on a pause request; only appropriate
+// for non-continuable thinkers to use...
 #ifndef Q_NO_EXCEPTIONS
-	void pollForStopException(unsigned long time = 0) const;
+    void pollForStopException (unsigned long time = 0) const;
 #endif
 
-friend class ThinkerPresentBase;
 
 public:
-	virtual void afterThreadAttach();
-	virtual void beforeThreadDetach();
+    virtual void afterThreadAttach ();
 
-friend class ThinkerRunner;
+    virtual void beforeThreadDetach ();
+
 
 public:
-    bool hopefullyCurrentThreadIsThink(codeplace const & cp) const
-	{
-		// we currently allow locking a thinker for writing
-		// on the manager thread between the time the
-		// Snapshot base class constructor has run
-		// and when it is attached to a ThinkerPresent
-		return hopefully(thread() == QThread::currentThread(), cp);
-	}
+    bool hopefullyCurrentThreadIsThink (codeplace const & cp) const {
+        // we currently allow locking a thinker for writing
+        // on the manager thread between the time the
+        // Snapshot base class constructor has run
+        // and when it is attached to a ThinkerPresent
+        return hopefully(thread() == QThread::currentThread(), cp);
+    }
+
 
 protected:
-	// These overrides provide added checking and also signal
-	// "progress" when the unlock runs.
+    // These overrides provide added checking and also signal
+    // "progress" when the unlock runs.
 
-    virtual void lockForWrite(codeplace const & cp) Q_DECL_OVERRIDE;
-    virtual void unlock(codeplace const & cp) Q_DECL_OVERRIDE;
+    virtual void lockForWrite (codeplace const & cp) override;
+
+    virtual void unlock (codeplace const & cp) override;
 
 #ifndef THINKERQT_REQUIRE_CODEPLACE
-	// This will cause the any asserts to indicate a failure in thinker.h instead
-	// line instead of the offending line in the caller... not as good... see hoist
-	// documentation http://hostilefork.com/hoist/
-	void lockForWrite()
-	{
-		return lockForWrite(HERE);
-	}
+    // This will cause the any asserts to indicate a failure in thinker.h
+    // instead of at the offending line in the caller... not as good... see
+    // hoist documentation http://hostilefork.com/hoist/
+    void lockForWrite () {
+        return lockForWrite(HERE);
+    }
 
-	void unlock()
-	{
-		return unlock(HERE);
-	}
+    void unlock () {
+        return unlock(HERE);
+    }
 #endif
 
-signals:
-	// TODO: Should the Thinker be forced to announce that it has returned
-	// from the thinking function even though a pause was not requested
-	// because it intends to process the event loop?  It is somewhat error
-	// prone to allow a return from a non-paused thinker without enforcing
-	// a done() signal, but essential to allow for the
-	// thinking to involve signal/slot processing.
 
-	void done();
+signals:
+    // TODO: Should the Thinker be forced to announce that it has returned
+    // from the thinking function even though a pause was not requested
+    // because it intends to process the event loop?  It is somewhat error
+    // prone to allow a return from a non-paused thinker without enforcing
+    // a done() signal, but essential to allow for the
+    // thinking to involve signal/slot processing.
+
+    void done ();
+
 
 protected:
-	virtual void start() = 0;
-	virtual void resume()
-	{
-		// Making a restartable thinker typically involves extra work to
-		// make it into a coroutine.  You don't have to do that work if
-		// you don't intend on pausing and restarting thinkers.  In that
-		// case, wasPauseRequested really just means wasStopRequested...
+    virtual void start () = 0;
 
-		hopefullyNotReached("This Thinker was not designed to be resumable.", HERE);
-	}
+    virtual void resume () {
+        // Making a restartable thinker typically involves extra work to
+        // make it into a coroutine.  You don't have to do that work if
+        // you don't intend on pausing and restarting thinkers.  In that
+        // case, wasPauseRequested really just means wasStopRequested...
+
+        hopefullyNotReached("Thinker not designed to be resumable.", HERE);
+    }
+
 
 private:
-	State state;
-    ThinkerManager & mgr;
-	QReadWriteLock watchersLock;
-    QSet<ThinkerPresentWatcherBase *> watchers;
-
-	friend class ThinkerManager;
-	friend class ThinkerPresentWatcherBase;
+    State _state;
+    ThinkerManager & _mgr;
+    QReadWriteLock _watchersLock;
+    QSet<ThinkerPresentWatcherBase *> _watchers;
 };
 
 
@@ -174,104 +183,133 @@ private:
 // it can be a good sanity check to keep thinkers from snapshotting
 // themselves...
 
-template<class DataTypeParam>
-class Thinker : public ThinkerBase, private Snapshottable<DataTypeParam>
+template <class T>
+class Thinker : public ThinkerBase, private Snapshottable<T>
 {
 public:
-	typedef DataTypeParam DataType;
+    typedef T DataType;
     typedef typename Snapshottable<DataType>::Snapshot Snapshot;
 
 public:
-	class Present : public ThinkerPresentBase
-	{
-	public:
-		Present () :
-			ThinkerPresentBase ()
-		{
-		}
+    class Present : public ThinkerPresentBase
+    {
+    public:
+        Present () :
+            ThinkerPresentBase ()
+        {
+        }
 
+    protected:
+        void verifyPresentType(codeplace const & cp) {
+            // If we are generating a templated Thinker<T>::Present from a
+            // base Present, ensure that the thinker held by that Present
+            // is actually convertible to Thinker<T>!
+            hopefully(
+                dynamic_cast<Thinker *>(&ThinkerPresentBase::getThinkerBase())
+                != nullptr,
+                cp
+            );
+        }
+
+    public:
         Present (ThinkerPresentBase & base) :
-			ThinkerPresentBase (base)
-		{
-            static_cast<void>(cast_hopefully<Thinker *>(&ThinkerPresentBase::getThinkerBase(), HERE));
-		}
+            ThinkerPresentBase (base)
+        {
+            verifyPresentType(HERE);
+        }
 
-        Present (Present const & other) :
-			ThinkerPresentBase (other)
-		{
-		}
-
-        virtual ~Present () Q_DECL_OVERRIDE
-		{
-		}
-
-	protected:
+    protected:
         Present (shared_ptr<ThinkerBase> holder) :
-			ThinkerPresentBase (holder)
-		{
-            static_cast<void>(cast_hopefully<Thinker *>(&ThinkerPresentBase::getThinkerBase(), HERE));
-		}
-		friend class ThinkerManager;
+            ThinkerPresentBase (holder)
+        {
+            verifyPresentType(HERE);
+        }
 
-	public:
-        typename Thinker::Snapshot createSnapshot() const
-		{
-			hopefullyCurrentThreadIsManager(HERE);
-            SnapshotBase* allocatedSnapshot (createSnapshotBase());
-            Snapshot result (*cast_hopefully<Snapshot*>(allocatedSnapshot, HERE));
-			delete allocatedSnapshot;
-			return result;
-		}
-	};
+    public:
+        Present (Present const & other) :
+            ThinkerPresentBase (other)
+        {
+        }
+
+        virtual ~Present () override
+        {
+        }
+
+        friend class ThinkerManager;
+
+    public:
+        typename Thinker::Snapshot createSnapshot () const
+        {
+            // This restriction will have to be relaxed, but it may still be
+            // helpful to offer some kind of virtual method hook to do thread
+            // checking.
+            hopefullyCurrentThreadIsManager(HERE);
+
+            SnapshotBase * allocatedSnapshot = createSnapshotBase();
+            Snapshot * ptr = dynamic_cast<Snapshot *>(allocatedSnapshot);
+            hopefully(ptr != nullptr, HERE);
+
+            Snapshot result = *ptr;
+            delete allocatedSnapshot;
+            return result;
+        }
+    };
+
 
 public:
-	class PresentWatcher : public ThinkerPresentWatcherBase
-	{
-	public:
-		PresentWatcher (Present present) :
-			ThinkerPresentWatcherBase (present)
-		{
-		}
+    class PresentWatcher : public ThinkerPresentWatcherBase
+    {
+    public:
+        PresentWatcher (Present present) :
+            ThinkerPresentWatcherBase (present)
+        {
+        }
 
-		PresentWatcher () :
-			ThinkerPresentWatcherBase ()
-		{
-		}
+        PresentWatcher () :
+            ThinkerPresentWatcherBase ()
+        {
+        }
 
-		~PresentWatcher ()
-		{
-		}
+        ~PresentWatcher ()
+        {
+        }
 
-	public:
-        typename Thinker::Snapshot createSnapshot() const
-		{
-			hopefullyCurrentThreadIsManager(HERE);
+    public:
+        typename Thinker::Snapshot createSnapshot () const
+        {
+            hopefullyCurrentThreadIsManager(HERE);
             SnapshotBase * allocatedSnapshot (createSnapshotBase());
-            Snapshot result (*cast_hopefully<Snapshot *>(allocatedSnapshot, HERE));
-			delete allocatedSnapshot;
-			return result;
-		}
 
-		void setPresent(Present present)
-		{
-			setPresentBase(present);
-		}
+            Snapshot * ptr = dynamic_cast<Snapshot *>(allocatedSnapshot);
+            hopefully(ptr != nullptr, HERE);
 
-		Present present()
-		{
-			return Present (presentBase());
-		}
-	};
+            Snapshot result = *ptr;
+            delete allocatedSnapshot;
+            return result;
+        }
+
+        void setPresent (Present present)
+        {
+            setPresentBase(present);
+        }
+
+        Present present ()
+        {
+            return Present (presentBase());
+        }
+    };
+
 
 public:
 #if THINKERQT_EXPLICIT_MANAGER
-    Thinker (ThinkerManager & mgr) :
-		ThinkerBase (mgr),
-        Snapshottable<DataType> ()
-	{
-	}
 
-    template<class... Args>
+    Thinker (ThinkerManager & mgr) :
+        ThinkerBase (mgr),
+        Snapshottable<DataType> ()
+    {
+    }
+
+    template <class... Args>
     Thinker (ThinkerManager & mgr, Args &&... args) :
         ThinkerBase (mgr),
         Snapshottable<DataType> (std::forward<Args>(args)...)
@@ -280,13 +318,13 @@ public:
 
 #else
 
-	Thinker () :
-		ThinkerBase (),
+    Thinker () :
+        ThinkerBase (),
         Snapshottable<DataType> ()
-	{
-	}
+    {
+    }
 
-    template<class... Args>
+    template <class... Args>
     Thinker (Args &&... args) :
         ThinkerBase (),
         Snapshottable<DataType> (std::forward<Args>(args)...)
@@ -295,39 +333,67 @@ public:
 
 #endif
 
-    virtual ~Thinker () Q_DECL_OVERRIDE
-	{
-	}
+    virtual ~Thinker () override
+    {
+    }
+
 
 private:
-	// You call makeSnapshot from the ThinkerPresent and not from the
-	// thinker itself.
+    // You call makeSnapshot from the ThinkerPresent and not from the
+    // thinker itself.
 
-	/*template< class T >*/ friend class Present;
-    Snapshot makeSnapshot()
-	{
+    friend class Present;
+    Snapshot makeSnapshot ()
+    {
         return Snapshottable<DataType>::makeSnapshot();
-	}
+    }
+
 
 public:
-	// These overrides are here because we are inheriting privately
-	// from Snapshottable, but want readable() and writable() to
-	// be public.
+    // These overrides are here because we are inheriting privately
+    // from Snapshottable, but want readable() and writable() to
+    // be public.
 
-    const DataTypeParam & readable() const
-	{
+    const T & readable () const
+    {
         return Snapshottable<DataType>::readable();
-	}
-    DataTypeParam & writable(codeplace const & cp)
-	{
+    }
+
+    T & writable (codeplace const & cp)
+    {
         return Snapshottable<DataType>::writable(cp);
-	}
-#ifndef THINKERQT_REQUIRE_CODEPLACE
-    DataTypeParam & writable()
-	{
-		return writable(HERE);
-	}
+    }
+
+#if not THINKERQT_REQUIRE_CODEPLACE
+    T & writable()
+    {
+        return writable(HERE);
+    }
 #endif
 };
+
+
+
+//
+// If for convenience you just want one on-demand manager, this provides an
+// analogue to QtConcurrent::run just from including thinker.h - otherwise
+// somewhere in your program you will have to include thinkermanager.h
+// and instantiate it yourself
+//
+
+#if not THINKERQT_EXPLICIT_MANAGER
+
+#include "thinkermanager.h"
+
+namespace ThinkerQt {
+
+    template <class ThinkerType, class... Args>
+    typename ThinkerType::Present run (Args&&... args) {
+        return ThinkerManager::getGlobalManager().run(unique_ptr<ThinkerType>(
+            new ThinkerType (std::forward<Args>(args)...))
+        );
+    }
+}
+#endif
 
 #endif

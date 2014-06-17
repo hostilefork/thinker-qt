@@ -1,7 +1,7 @@
 //
-// ThinkerPresent.h
+// thinkerpresent.h
 // This file is part of Thinker-Qt
-// Copyright (C) 2010 HostileFork.com
+// Copyright (C) 2010-2014 HostileFork.com
 //
 // Thinker-Qt is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -30,6 +30,7 @@
 class ThinkerBase;
 class ThinkerManager;
 
+
 //
 // ThinkerPresent
 //
@@ -41,72 +42,115 @@ class ThinkerManager;
 class ThinkerPresentBase
 {
 public:
-	// Following pattern set up by QtConcurrent's QFuture
-	// default construction yields an empty future that just thinks of itself as canceled
-	ThinkerPresentBase ();
-	ThinkerPresentBase (const ThinkerPresentBase& other);
-	ThinkerPresentBase& operator= (const ThinkerPresentBase & other);
-	virtual ~ThinkerPresentBase ();
+    // Following pattern set up by QtConcurrent's QFuture, whose default
+    // construction yields an empty future that thinks of itself as canceled
+    ThinkerPresentBase ();
+
+    ThinkerPresentBase (ThinkerPresentBase const & other);
+
+    ThinkerPresentBase & operator= (const ThinkerPresentBase & other);
+
+    virtual ~ThinkerPresentBase ();
+
 
 protected:
+    friend class ThinkerManager;
+
     ThinkerPresentBase (shared_ptr<ThinkerBase> holder);
-	friend class ThinkerManager;
+
 
 public:
-	bool operator!= (const ThinkerPresentBase& other) const;
-	bool operator== (const ThinkerPresentBase& other) const;
+    bool operator!= (ThinkerPresentBase const & other) const;
+
+    bool operator== (ThinkerPresentBase const & other) const;
+
 
 protected:
-	bool hopefullyCurrentThreadIsManager(codeplace const & cp) const;
-	friend class ThinkerPresentWatcherBase;
+    friend class ThinkerPresentWatcherBase;
+
+    bool hopefullyCurrentThreadIsManager(codeplace const & cp) const;
+
 
 protected:
-	// Is this a good idea to export in the API?
-    ThinkerBase & getThinkerBase();
-    const ThinkerBase & getThinkerBase() const;
+    // https://github.com/hostilefork/thinker-qt/issues/4
+
+    ThinkerBase & getThinkerBase ();
+
+    ThinkerBase const & getThinkerBase () const;
+
 
 public:
-	// QFuture thinks of returning a list of results, whereas we snapshot
-	/* T result() const; */
-	/* operator T () const; */
-	/* T resultAt(int index) const; */
-	/* int resultCount() const; */
-	/* QList<T> results() const; */
-	/* bool isResultReadyAt(int index) const; */
+    // QFuture thinks of returning a list of results, whereas we snapshot
+#if RETURN_LIST_OF_RESULTS_LIKE_QFUTURE
 
-    SnapshotBase* createSnapshotBase() const;
+    T result () const;
 
-public:
-	// The isStarted() and isRunning() methods of QFuture are not
-	// exposed by the ThinkerPresent... essentially any Thinker that
-	// has been initialized with a shared data state and can be queried.
+    operator T () const;
 
-	/* bool isStarted() const */
-	/* bool isRunning() const; */
+    T resultAt (int index) const;
 
-	bool isCanceled() const;
-	bool isFinished() const;
-	bool isPaused() const;
+    int resultCount () const;
 
-	void cancel();
-	void pause();
-	void resume();
-	void setPaused(bool paused);
-	void togglePaused();
+    QList<T> results () const;
 
-	void waitForFinished();
+    bool isResultReadyAt (int index) const;
+
+#endif
+
+    SnapshotBase * createSnapshotBase () const;
+
 
 public:
-	// TODO: Should Thinkers implement a progress API like QFuture?
-	// QFuture's does not apply to run() interfaces...
+    // The isStarted() and isRunning() methods of QFuture are not
+    // exposed by the ThinkerPresent... essentially any Thinker that
+    // has been initialized with a shared data state and can be queried.
+#if EXPOSE_ISSTARTED_AND_ISRUNNING_LIKE_QFUTURE
 
-	/* int progressMaximum() const; */
-	/* int progressMinimum() const; */
-	/* QString progressText() const; */
-	/* int progressValue() const; */
+    bool isStarted () const;
+
+    bool isRunning () const;
+
+#endif
+
+    bool isCanceled () const;
+
+    bool isFinished () const;
+
+    bool isPaused () const;
+
+
+    void cancel ();
+
+    void pause ();
+
+    void resume ();
+
+    void setPaused (bool paused);
+
+    void togglePaused ();
+
+
+    void waitForFinished ();
+
+
+public:
+    // TODO: Should Thinkers implement a progress API like QFuture?
+    // QFuture's does not apply to run() interfaces...
+#if OFFER_PROGRESS_API_LIKE_QFUTURE
+
+    int progressMaximum () const;
+
+    int progressMinimum () const;
+
+    QString progressText () const;
+
+    int progressValue () const;
+
+#endif
+
 
 protected:
-    shared_ptr<ThinkerBase> holder;
+    shared_ptr<ThinkerBase> _holder;
 };
 
 // we moc this file, though whether there are any QObjects or not may vary

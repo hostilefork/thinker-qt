@@ -1,7 +1,7 @@
 //
-// ThinkerRunner.h
+// thinkerrunner.h
 // This file is part of Thinker-Qt
-// Copyright (C) 2010 HostileFork.com
+// Copyright (C) 2010-2014 HostileFork.com
 //
 // Thinker-Qt is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -37,113 +37,143 @@ class ThinkerRunnerProxy;
 
 class ThinkerRunner : public QEventLoop
 {
-	Q_OBJECT
+    Q_OBJECT
+
 
 private:
-	enum State {
-		RunnerQueued, // => ThreadPush
-		RunnerQueuedButPaused, // => Queued, Paused
-		RunnerThreadPush, // => Thinking
-		RunnerThinking, // => Pausing, Canceling, Finished
-		RunnerPausing, // => Paused
-		RunnerPaused, // => Canceled, Resuming
-		RunnerResuming, // => Thinking
-		RunnerFinished, // => Canceled
-		RunnerCanceling, // => Canceled
-		RunnerCanceled // terminal
-	};
+    enum State {
+        RunnerQueued, // => ThreadPush
+        RunnerQueuedButPaused, // => Queued, Paused
+        RunnerThreadPush, // => Thinking
+        RunnerThinking, // => Pausing, Canceling, Finished
+        RunnerPausing, // => Paused
+        RunnerPaused, // => Canceled, Resuming
+        RunnerResuming, // => Thinking
+        RunnerFinished, // => Canceled
+        RunnerCanceling, // => Canceled
+        RunnerCanceled // terminal
+    };
+
 
 public:
     ThinkerRunner (shared_ptr<ThinkerBase> holder);
+
     virtual ~ThinkerRunner () override;
+
 
 public:
     ThinkerManager & getManager() const;
+
     ThinkerBase & getThinker();
-    const ThinkerBase & getThinker() const;
+
+    ThinkerBase const & getThinker() const;
+
 
 public:
-	void doThreadPushIfNecessary();
+    void doThreadPushIfNecessary();
+
 
 public:
-	bool hopefullyCurrentThreadIsRun(codeplace const & cp) const;
-	bool hopefullyCurrentThreadIsManager(codeplace const & cp) const;
+    bool hopefullyCurrentThreadIsRun(codeplace const & cp) const;
+
+    bool hopefullyCurrentThreadIsManager(codeplace const & cp) const;
+
 
 signals:
-	void breakEventLoop();
-	void resumeThinking();
+    void breakEventLoop();
+
+    void resumeThinking();
+
 
 public:
-	void requestPause (codeplace const & cp) {
-		requestPauseCore(false, cp);
-	}
-	void waitForPause() {
-		waitForPauseCore(false);
-	}
+    void requestPause (codeplace const & cp) {
+        requestPauseCore(false, cp);
+    }
 
-	void requestPauseButCanceledIsOkay(codeplace const & cp) {
-		requestPauseCore(true, cp);
-	}
-	void waitForPauseButCanceledIsOkay() {
-		waitForPauseCore(true);
-	}
+    void waitForPause() {
+        waitForPauseCore(false);
+    }
 
-	void requestCancel(codeplace const & cp) {
-		requestCancelCore(false, cp);
-	}
-	void requestCancelButAlreadyCanceledIsOkay(codeplace const & cp) {
-		requestCancelCore(true, cp);
-	}
+    void requestPauseButCanceledIsOkay (codeplace const & cp) {
+        requestPauseCore(true, cp);
+    }
 
-	void requestResume(codeplace const & cp) {
-		requestResumeCore(false, cp);
-	}
-	void requestResumeButCanceledIsOkay(codeplace const & cp) {
-		requestResumeCore(true, cp);
-	}
-	void waitForResume(codeplace const & cp);
+    void waitForPauseButCanceledIsOkay () {
+        waitForPauseCore(true);
+    }
 
-	void waitForFinished(codeplace const & cp);
+    void requestCancel (codeplace const & cp) {
+        requestCancelCore(false, cp);
+    }
+
+    void requestCancelButAlreadyCanceledIsOkay (codeplace const & cp) {
+        requestCancelCore(true, cp);
+    }
+
+    void requestResume (codeplace const & cp) {
+        requestResumeCore(false, cp);
+    }
+
+    void requestResumeButCanceledIsOkay (codeplace const & cp) {
+        requestResumeCore(true, cp);
+    }
+
+    void waitForResume (codeplace const & cp);
+
+    void waitForFinished (codeplace const & cp);
+
 
 public:
-	bool isFinished() const;
-	bool isCanceled() const;
-	bool isPaused() const;
-	bool wasPauseRequested(unsigned long time = 0) const;
+    bool isFinished () const;
+
+    bool isCanceled () const;
+
+    bool isPaused () const;
+
+    bool wasPauseRequested (unsigned long time = 0) const;
 
 #ifndef Q_NO_EXCEPTIONS
-public:
-	void pollForStopException(unsigned long time = 0) const;
+    void pollForStopException (unsigned long time = 0) const;
 #endif
+
 
 protected:
-	bool runThinker();
-	friend class ThinkerRunnerProxy;
+    friend class ThinkerRunnerProxy;
+
+    bool runThinker();
+
 
 private:
-	void requestPauseCore(bool isCanceledOkay, codeplace const & cp);
-	void waitForPauseCore(bool isCanceledOkay);
-	void requestCancelCore(bool isAlreadyCanceledOkay, codeplace const & cp);
-	void requestResumeCore(bool isCanceledOkay, codeplace const & cp);
+    void requestPauseCore (bool isCanceledOkay, codeplace const & cp);
+
+    void waitForPauseCore (bool isCanceledOkay);
+
+    void requestCancelCore (bool isAlreadyCanceledOkay, codeplace const & cp);
+
+    void requestResumeCore (bool isCanceledOkay, codeplace const & cp);
+
 
 #ifndef Q_NO_EXCEPTIONS
 private:
-	class StopException {
-	};
+    class StopException {
+    };
 #endif
 
 private:
-    tracked<State> state;
-	// it's for communication between one manager and one thinker so use wakeOne()
-	mutable QWaitCondition stateWasChanged;
-	mutable QMutex stateMutex;
-    shared_ptr<ThinkerBase> holder;
-    QSharedPointer<ThinkerRunnerHelper> helper;
+    tracked<State> _state;
 
-	// http://www.learncpp.com/cpp-tutorial/93-overloading-the-io-operators/
-	friend QTextStream & operator<< (QTextStream & o, const State& state);
-	friend class ThinkerRunnerHelper;
+    // for communication between one manager and one thinker so use wakeOne()
+    mutable QWaitCondition _stateWasChanged;
+    mutable QMutex _stateMutex;
+
+    shared_ptr<ThinkerBase> _holder;
+    QSharedPointer<ThinkerRunnerHelper> _helper;
+
+    // http://www.learncpp.com/cpp-tutorial/93-overloading-the-io-operators/
+    friend QTextStream & operator<< (QTextStream & o, State const & state);
+    friend class ThinkerRunnerHelper;
 };
+
 
 
 // pretty much every thread object needs a member who was
@@ -154,43 +184,59 @@ class ThinkerRunnerHelper : public QObject
     Q_OBJECT
 
 private:
-    ThinkerRunner & runner;
+    ThinkerRunner & _runner;
 
 public:
     ThinkerRunnerHelper (ThinkerRunner & runner);
+
     ~ThinkerRunnerHelper () override;
 
 public:
-    bool hopefullyCurrentThreadIsRun(codeplace const & cp) const
-    {
-        return hopefully(QThread::currentThread() == runner.getThinker().thread(), cp);
+    bool hopefullyCurrentThreadIsRun (codeplace const & cp) const {
+        return hopefully(
+            QThread::currentThread() == _runner.getThinker().thread(),
+            cp
+        );
     }
+
+
 public slots:
     void markFinished();
+
     void queuedQuit();
 };
+
 
 
 //
 // ThinkerRunnerProxy
 //
-// An unfortunate aspect of using thread pools is that you cannot emit a signal from the
-// pooled thread to a managing thread which you then use to destroy the object.
+// An unfortunate aspect of using thread pools is that you cannot emit a signal
+// from the pooled thread to a managing thread usable to destroy the object.
 //
-// Here's why: Even if the very last line of
-// your QRunnable interface is  "emit deleteOkayNow()" the delete is not necessarily
-// okay unless you specifically wait for the thread pool to finish all of its tasks.
+// Here's why: Even if the very last line of your QRunnable interface is 
+// "emit deleteOkayNow()" the delete is not necessarily okay unless you
+// specifically wait for the thread pool to finish all of its tasks.
 //
 
 class ThinkerRunnerProxy : public QRunnable {
+
 public:
     ThinkerRunnerProxy (shared_ptr<ThinkerRunner> runner);
-	ThinkerManager & getManager();
-	void run();
-	~ThinkerRunnerProxy ();
+
+    ~ThinkerRunnerProxy () override;
+
+
+public:
+    ThinkerManager & getManager();
+
+
+public:
+    void run();
+
 
 private:
-    shared_ptr<ThinkerRunner> runner;
+    shared_ptr<ThinkerRunner> _runner;
 };
 
 #endif

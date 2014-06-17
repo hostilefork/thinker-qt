@@ -40,7 +40,7 @@
 #include <QThread>
 #include <QWaitCondition>
 #include <QImage>
-#include "thinkerqt/thinkerqt.h"
+#include "thinkerqt/thinker.h"
 
 class RenderThinker;
 
@@ -62,7 +62,7 @@ public:
 
     bool hasImage() const { return !image.isNull(); }
 
-    const QImage& getImage() const { return image; }
+    QImage const & getImage() const { return image; }
 
     double getScaleFactor() const { return scaleFactor; }
 };

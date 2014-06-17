@@ -1,7 +1,7 @@
 //
-// ThinkerPresentWatcher.h
+// thinkerpresentwatcher.h
 // This file is part of Thinker-Qt
-// Copyright (C) 2010 HostileFork.com
+// Copyright (C) 2010-2014 HostileFork.com
 //
 // Thinker-Qt is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -43,77 +43,110 @@ class ThinkerManager;
 
 class ThinkerPresentWatcherBase : public QObject
 {
-	Q_OBJECT
+    Q_OBJECT
 
 public:
-	ThinkerPresentWatcherBase ();
-	virtual ~ThinkerPresentWatcherBase ();
+    ThinkerPresentWatcherBase ();
+
+    ~ThinkerPresentWatcherBase () override;
+
 
 signals:
-	void written();
-	void finished();
+    void written ();
+
+    void finished ();
+
 
 public:
-	void setThrottleTime(unsigned int milliseconds);
-	void setPresentBase(ThinkerPresentBase present);
-	ThinkerPresentBase presentBase();
+    void setThrottleTime (unsigned int milliseconds);
+
+    void setPresentBase (ThinkerPresentBase present);
+
+    ThinkerPresentBase presentBase ();
+
 
 public:
-    SnapshotBase* createSnapshotBase() const
-		{ return present.createSnapshotBase(); }
+    SnapshotBase const * createSnapshotBase () const {
+        return _present.createSnapshotBase();
+    }
+
 
 public:
-	bool isCanceled() const
-		{ return present.isCanceled(); }
+    bool isCanceled () const {
+        return _present.isCanceled();
+    }
 
-	bool isFinished() const
-		{ return present.isFinished(); }
+    bool isFinished () const {
+        return _present.isFinished();
+    }
 
-	bool isPaused() const
-		{ return present.isPaused(); }
+    bool isPaused () const {
+        return _present.isPaused();
+    }
+
 
 public slots:
-	void cancel()
-		{ present.cancel(); }
+    void cancel () {
+        _present.cancel();
+    }
 
-	void pause()
-		{ present.pause(); }
+    void pause () {
+        _present.pause();
+    }
 
-	void resume()
-		{ present.resume(); }
+    void resume () {
+        _present.resume();
+    }
 
-	void setPaused(bool paused)
-		{ present.setPaused(paused); }
+    void setPaused (bool paused) {
+        _present.setPaused(paused);
+    }
 
-	void togglePaused()
-		{ present.togglePaused(); }
+    void togglePaused () {
+        _present.togglePaused();
+    }
 
 public:
-	void waitForFinished()
-		{ present.waitForFinished(); }
+    void waitForFinished () {
+        _present.waitForFinished();
+    }
+
 
 private:
-	void doConnections();
-	void doDisconnections();
+    void doConnections ();
+
+    void doDisconnections ();
+
 
 protected:
-	ThinkerPresentWatcherBase (ThinkerPresentBase present);
-	friend class ThinkerManager;
+    friend class ThinkerManager;
+
+    ThinkerPresentWatcherBase (ThinkerPresentBase present);
+
 
 protected:
-	bool hopefullyCurrentThreadIsManager(codeplace const & cp) const
-		{ return present != ThinkerPresentBase() ? present.hopefullyCurrentThreadIsManager(cp) : true; }
+    bool hopefullyCurrentThreadIsManager(codeplace const & cp) const {
+        if (_present == ThinkerPresentBase()) {
+            return true;
+        } else {
+            return _present.hopefullyCurrentThreadIsManager(cp);
+        }
+    }
+
 
 protected:
-	// Is this a good idea to export in the API?
-	ThinkerBase & getThinkerBase();
-	const ThinkerBase & getThinkerBase() const;
+    // https://github.com/hostilefork/thinker-qt/issues/4
+
+    ThinkerBase & getThinkerBase();
+
+    ThinkerBase const & getThinkerBase() const;
+
 
 protected:
-	ThinkerPresentBase present;
-	unsigned int milliseconds;
-    QSharedPointer<SignalThrottler> notificationThrottler;
-	friend class ThinkerBase;
+    ThinkerPresentBase _present;
+    unsigned int _milliseconds;
+    QSharedPointer<SignalThrottler> _notificationThrottler;
+    friend class ThinkerBase;
 };
 
 #endif

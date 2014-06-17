@@ -1,7 +1,7 @@
 //
-// Thinker.cpp
+// thinker.cpp
 // This file is part of Thinker-Qt
-// Copyright (C) 2010 HostileFork.com
+// Copyright (C) 2010-2014 HostileFork.com
 //
 // Thinker-Qt is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -29,11 +29,11 @@
 
 #if THINKERQT_EXPLICIT_MANAGER
 ThinkerBase::ThinkerBase (ThinkerManager & mgr) :
-	QObject (),
-	state (ThinkerOwnedByRunner),
-	mgr (mgr)
+    QObject (),
+    _state (ThinkerOwnedByRunner),
+    _mgr (mgr)
 {
-	getManager().hopefullyCurrentThreadIsManager(HERE);
+    getManager().hopefullyCurrentThreadIsManager(HERE);
 }
 #else
 ThinkerBase::ThinkerBase () :
@@ -45,64 +45,63 @@ ThinkerBase::ThinkerBase () :
 }
 #endif
 
-ThinkerManager & ThinkerBase::getManager() const
-{
-	return mgr;
+
+ThinkerManager & ThinkerBase::getManager () const {
+    return _mgr;
 }
 
-void ThinkerBase::afterThreadAttach()
-{
+
+void ThinkerBase::afterThreadAttach () {
 }
 
-void ThinkerBase::beforeThreadDetach()
-{
+
+void ThinkerBase::beforeThreadDetach () {
 }
 
-void ThinkerBase::lockForWrite(codeplace const & cp)
-{
-	hopefullyCurrentThreadIsThink(HERE);
 
-	SnapshottableBase::lockForWrite(cp);
+void ThinkerBase::lockForWrite (codeplace const & cp) {
+    hopefullyCurrentThreadIsThink(HERE);
+
+    SnapshottableBase::lockForWrite(cp);
 }
 
-void ThinkerBase::unlock(codeplace const & cp)
-{
-	hopefullyCurrentThreadIsThink(HERE);
 
-	getManager().unlockThinker(*this);
+void ThinkerBase::unlock (codeplace const & cp) {
+    hopefullyCurrentThreadIsThink(HERE);
 
-	SnapshottableBase::unlock(cp);
+    getManager().unlockThinker(*this);
+
+    SnapshottableBase::unlock(cp);
 }
-#include <QDebug>
 
-bool ThinkerBase::wasPauseRequested(unsigned long time) const
-{
-	hopefullyCurrentThreadIsThink(HERE);
 
-    shared_ptr<ThinkerRunner> runner (getManager().maybeGetRunnerForThinker(*this));
+bool ThinkerBase::wasPauseRequested (unsigned long time) const {
+    hopefullyCurrentThreadIsThink(HERE);
+
+    auto runner = getManager().maybeGetRunnerForThinker(*this);
     if (runner == nullptr) {
-        hopefully(state == ThinkerFinished, HERE);
+        hopefully(_state == ThinkerFinished, HERE);
         return false;
     }
-	return runner->wasPauseRequested(time);
+    return runner->wasPauseRequested(time);
 }
 
-#ifndef Q_NO_EXCEPTIONS
-void ThinkerBase::pollForStopException(unsigned long time) const
-{
-	hopefullyCurrentThreadIsThink(HERE);
 
-    shared_ptr<ThinkerRunner> runner (getManager().maybeGetRunnerForThinker(*this));
+#ifndef Q_NO_EXCEPTIONS
+void ThinkerBase::pollForStopException (unsigned long time) const {
+    hopefullyCurrentThreadIsThink(HERE);
+
+    auto runner = getManager().maybeGetRunnerForThinker(*this);
     if (runner == nullptr) {
-        hopefully(state == ThinkerFinished, HERE);
+        hopefully(_state == ThinkerFinished, HERE);
     } else {
         runner->pollForStopException(time);
     }
 }
 #endif
 
-ThinkerBase::~ThinkerBase ()
-{
-	getManager().hopefullyCurrentThreadIsManager(HERE);
+
+ThinkerBase::~ThinkerBase () {
+    getManager().hopefullyCurrentThreadIsManager(HERE);
     hopefully(getManager().maybeGetRunnerForThinker(*this) == nullptr, HERE);
 }

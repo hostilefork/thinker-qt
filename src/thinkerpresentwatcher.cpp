@@ -1,7 +1,7 @@
 //
-// ThinkerPresentWatcher.cpp
+// thinkerpresentwatcher.cpp
 // This file is part of Thinker-Qt
-// Copyright (C) 2010 HostileFork.com
+// Copyright (C) 2010-2014 HostileFork.com
 //
 // Thinker-Qt is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -23,93 +23,112 @@
 #include "thinkerqt/thinker.h"
 
 ThinkerPresentWatcherBase::ThinkerPresentWatcherBase () :
-	present (),
-	milliseconds (200),
-	notificationThrottler ()
+    _present (),
+    _milliseconds (200),
+    _notificationThrottler ()
 {
-	hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsManager(HERE);
 }
 
-ThinkerPresentWatcherBase::ThinkerPresentWatcherBase (ThinkerPresentBase present) :
-	present (present),
-	// we parent the SignalThrottler to the thinker so that they'll have the same thread affinity
-	// after the reparenting.  But is 200 milliseconds a good default?
-	milliseconds (200),
-	notificationThrottler ()
+
+ThinkerPresentWatcherBase::ThinkerPresentWatcherBase (
+    ThinkerPresentBase present
+) :
+    _present (present),
+    // we parent the SignalThrottler to the thinker so that they'll have the
+    // same thread affinity after the reparenting.  But is 200 milliseconds
+    // a good default?
+    _milliseconds (200),
+    _notificationThrottler ()
 {
-	hopefullyCurrentThreadIsManager(HERE);
-	doConnections();
+    hopefullyCurrentThreadIsManager(HERE);
+    doConnections();
 }
 
-void ThinkerPresentWatcherBase::doConnections()
-{
-	if (ThinkerPresentBase() != present) {
-		notificationThrottler = QSharedPointer<SignalThrottler>(
-			new SignalThrottler (milliseconds, &present.getThinkerBase())
-		);
-		connect(notificationThrottler.data(), SIGNAL(throttled()), this, SIGNAL(written()), Qt::AutoConnection);
-		connect(&present.getThinkerBase(), SIGNAL(done()), this, SIGNAL(finished()), Qt::AutoConnection);
 
-		// add to the new watch list.  note that we may have missed the "finished"
-		// signal so if it has finished, you will get an artificial "finished" re-broadcast
-		ThinkerBase & thinker (this->present.getThinkerBase());
-		thinker.watchersLock.lockForWrite();
-		hopefully(not thinker.watchers.contains(this), HERE);
-		thinker.watchers.insert(this);
-		thinker.watchersLock.unlock();
-	} else {
-		hopefully(not notificationThrottler, HERE);
-	}
+void ThinkerPresentWatcherBase::doConnections () {
+    if (ThinkerPresentBase() != _present) {
+
+        _notificationThrottler = QSharedPointer<SignalThrottler>(
+            new SignalThrottler (_milliseconds, &_present.getThinkerBase())
+        );
+
+        connect(
+            _notificationThrottler.data(), SIGNAL(throttled()),
+            this, SIGNAL(written()),
+            Qt::AutoConnection
+        );
+
+        connect(
+            &_present.getThinkerBase(), SIGNAL(done()),
+            this, SIGNAL(finished()),
+            Qt::AutoConnection
+        );
+
+        // add to the new watch list.  note that we may have missed the
+        // "finished" signal so if it has finished, you will get an artificial
+        // "finished" re-broadcast
+        ThinkerBase & thinker = this->_present.getThinkerBase();
+
+        QWriteLocker lock (&thinker._watchersLock);
+        
+        hopefully(not thinker._watchers.contains(this), HERE);
+        thinker._watchers.insert(this);
+    } else {
+        hopefully(not _notificationThrottler, HERE);
+    }
 }
 
-void ThinkerPresentWatcherBase::doDisconnections()
-{
-	if (this->present != ThinkerPresentBase ()) {
-		// remove from the old watch list.  note that a signal may still be in the queue
-		ThinkerBase & thinker (this->present.getThinkerBase());
-		thinker.watchersLock.lockForWrite();
-		hopefully(thinker.watchers.remove(this), HERE);
-		thinker.watchersLock.unlock();
-		notificationThrottler = QSharedPointer<SignalThrottler>();
-	} else {
-		hopefully(not notificationThrottler, HERE);
-	}
+
+void ThinkerPresentWatcherBase::doDisconnections () {
+    if (this->_present != ThinkerPresentBase ()) {
+        // remove from the old watch list.
+        // note that a signal may still be in the queue
+        ThinkerBase & thinker = this->_present.getThinkerBase();
+
+        QWriteLocker lock (&thinker._watchersLock);
+        hopefully(thinker._watchers.remove(this), HERE);
+
+        _notificationThrottler = QSharedPointer<SignalThrottler>();
+    } else {
+        hopefully(not _notificationThrottler, HERE);
+    }
 }
 
-void ThinkerPresentWatcherBase::setPresentBase(ThinkerPresentBase present)
-{
-	hopefullyCurrentThreadIsManager(HERE);
 
-	if (this->present == present)
-		return;
+void ThinkerPresentWatcherBase::setPresentBase (ThinkerPresentBase present) {
+    hopefullyCurrentThreadIsManager(HERE);
 
-	doDisconnections();
+    if (this->_present == present)
+        return;
 
-	this->present = present;
+    doDisconnections();
 
-	doConnections();
+    this->_present = present;
+
+    doConnections();
 }
 
-ThinkerPresentBase ThinkerPresentWatcherBase::presentBase()
-{
-	hopefullyCurrentThreadIsManager(HERE);
 
-	return present;
+ThinkerPresentBase ThinkerPresentWatcherBase::presentBase () {
+    hopefullyCurrentThreadIsManager(HERE);
+
+    return _present;
 }
 
-void ThinkerPresentWatcherBase::setThrottleTime(unsigned int milliseconds)
-{
-	hopefullyCurrentThreadIsManager(HERE);
 
-	this->milliseconds = milliseconds;
-	if (notificationThrottler) {
-		notificationThrottler->setMillisecondsDefault(milliseconds);
-	}
+void ThinkerPresentWatcherBase::setThrottleTime (unsigned int milliseconds) {
+    hopefullyCurrentThreadIsManager(HERE);
+
+    this->_milliseconds = milliseconds;
+    if (_notificationThrottler) {
+        _notificationThrottler->setMillisecondsDefault(milliseconds);
+    }
 }
 
-ThinkerPresentWatcherBase::~ThinkerPresentWatcherBase ()
-{
-	hopefullyCurrentThreadIsManager(HERE);
 
-	doDisconnections();
+ThinkerPresentWatcherBase::~ThinkerPresentWatcherBase () {
+    hopefullyCurrentThreadIsManager(HERE);
+
+    doDisconnections();
 }

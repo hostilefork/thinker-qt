@@ -37,7 +37,7 @@
 
 #include <QPixmap>
 #include <QWidget>
-#include "thinkerqt/thinkerqt.h"
+#include "thinkerqt/thinker.h"
 
 #include "renderthread.h"
 

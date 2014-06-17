@@ -1,7 +1,7 @@
 //
-// Snapshottable.cpp
+// snapshottable.cpp
 // This file is part of Thinker-Qt
-// Copyright (C) 2010 HostileFork.com
+// Copyright (C) 2010-2014 HostileFork.com
 //
 // Thinker-Qt is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -24,21 +24,21 @@
 // SnapshottableBase
 
 SnapshottableBase::SnapshottableBase () :
-	dLock (),
-	lockedForWrite (false, HERE)
+    _dLock (),
+    _lockedForWrite (false, HERE)
 {
 }
 
-void SnapshottableBase::lockForWrite(codeplace const & cp)
+void SnapshottableBase::lockForWrite (codeplace const & cp)
 {
-	lockedForWrite.hopefullyTransition(false, true, cp);
-	dLock.lockForWrite();
+    _lockedForWrite.hopefullyTransition(false, true, cp);
+    _dLock.lockForWrite();
 }
 
-void SnapshottableBase::unlock(codeplace const & cp)
+void SnapshottableBase::unlock (codeplace const & cp)
 {
-	lockedForWrite.hopefullyTransition(true, false, cp);
-	dLock.unlock();
+    _lockedForWrite.hopefullyTransition(true, false, cp);
+    _dLock.unlock();
 }
 
 SnapshottableBase::~SnapshottableBase ()

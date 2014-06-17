@@ -1,7 +1,7 @@
 //
-// Snapshottable.h
+// snapshottable.h
 // This file is part of Thinker-Qt
-// Copyright (C) 2010 HostileFork.com
+// Copyright (C) 2010-2014 HostileFork.com
 //
 // Thinker-Qt is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -38,7 +38,7 @@
 //
 // All things being equal, I'd have preferred to just use QSharedData here
 // instead of creating another type.  Unfortunately, QSharedData has no
-// virtual methods.  So dynamic_cast< Derived >(qshareddatapointer) just
+// virtual methods.  So dynamic_cast<Derived>(qshareddatapointer) just
 // won't work.
 //
 //    http://bytes.com/topic/c/answers/134946-dynamic_cast-not-polymorphic-type
@@ -46,14 +46,15 @@
 // Would it be worth it to allow use of QSharedData for those clients who
 // didn't need to dynamic_cast?  Perhaps use a trick like this...
 //
-//    http://stackoverflow.com/questions/281725/template-specialization-based-on-inherit-class
+//    http://stackoverflow.com/questions/281725/
 //
 
 class SnapshottableData : public QSharedData
 {
 public:
-	virtual ~SnapshottableData()
-		{ }
+    virtual ~SnapshottableData ()
+    {
+    }
 };
 
 
@@ -74,7 +75,7 @@ public:
 // Technical considerations prevent putting a data member into the
 // SnapshotBase such as:
 //
-//	QSharedDataPointer< SnapshottableBase > d;
+//  QSharedDataPointer< SnapshottableBase > d;
 //
 // That is because QSharedDataPointer relies upon access to the copy
 // constructor of the most-derived type for the copy-on-write implemention.
@@ -91,17 +92,17 @@ public:
 class SnapshotBase
 {
 public:
-	virtual void clear() = 0;
-	virtual const SnapshottableData* dataBase() const = 0;
+    virtual void clear () = 0;
+    virtual const SnapshottableData * dataBase () const = 0;
 
     // Avoids "deleting object of abstract class type 'SnapshotBase' which
     // has non-virtual destructor will cause undefined behavior" error.
-    virtual ~SnapshotBase() {}
+    virtual ~SnapshotBase () {}
 
 private:
-	// (...there should be a member put here...)
-	// QSharedDataPointer< Derived > d;
-	// (...in the Snapshot< Derived > template...)
+    // (...there should be a member put here...)
+    // QSharedDataPointer< Derived > d;
+    // (...in the Snapshot< Derived > template...)
 };
 
 
@@ -123,17 +124,17 @@ private:
 class SnapshottableBase
 {
 public:
-	SnapshottableBase ();
-	virtual ~SnapshottableBase ();
+    SnapshottableBase ();
+    virtual ~SnapshottableBase ();
 
 public:
-	// createSnapshotBase returns a pointer to an allocated object
-	// due to technical restrictions, but createSnapshot proper returns
-	// an implicitly shared type
+    // createSnapshotBase returns a pointer to an allocated object
+    // due to technical restrictions, but createSnapshot proper returns
+    // an implicitly shared type
 
-	// TrollTech uses "create" when applied to factory-style things
-	// Note: http://doc.trolltech.com/4.6/functions.html
-    virtual SnapshotBase* createSnapshotBase() const = 0;
+    // TrollTech uses "create" when applied to factory-style things
+    // Note: http://doc.trolltech.com/4.6/functions.html
+    virtual SnapshotBase * createSnapshotBase() const = 0;
 
 protected:
         // It's true that the shared data pointer protects us across threads
@@ -141,12 +142,12 @@ protected:
         // writes that go together and we don't want anyone to snapshot
         // the object in the middle of that.
 
-	virtual void lockForWrite(codeplace const & cp);
-	virtual void unlock(codeplace const & cp);
+    virtual void lockForWrite (codeplace const & cp);
+    virtual void unlock (codeplace const & cp);
 
 protected:
-	mutable QReadWriteLock dLock;
-    tracked<bool> lockedForWrite;
+    mutable QReadWriteLock _dLock;
+    tracked<bool> _lockedForWrite;
 };
 
 
@@ -167,141 +168,140 @@ protected:
 //    http://doc.trolltech.com/qq/qq15-academic.html
 //
 
-template<class DataTypeParam>
+template <class T>
 class Snapshottable : virtual public SnapshottableBase
 {
 public:
-	typedef DataTypeParam DataType;
+    typedef T DataType;
 
 public:
     // Snapshot follows the convention set up by QFuture and friends
-	// of sharing inside the type, as well as tolerating a default construction
+    // of sharing inside the type, as well as tolerating a default construction
     // Hence a Snapshot is actually a SnapshotPointer or a SharedSnapshot.
     // But that's wordy, as would QSharedFuture be.  We use the short name.
 
     class Snapshot : public SnapshotBase
-	{
-	public:
+    {
+    public:
         Snapshot () :
-			d ()
-		{
-		}
+            _d ()
+        {
+        }
 
         Snapshot (const Snapshot& other) :
-			d (other.d)
-		{
-		}
+            _d (other._d)
+        {
+        }
 
-        Snapshot& operator= (const Snapshot & other)
-		{
-			if (this != &other) {
-				d = other.d;
-			}
-			return *this;
-		}
+        Snapshot & operator= (const Snapshot & other) {
+            if (this != &other) {
+                _d = other._d;
+            }
+            return *this;
+        }
 
         ~Snapshot ()
-		{
-		}
+        {
+        }
 
-	protected:
+    protected:
         Snapshot (QSharedDataPointer<DataType> initialD) :
-			d (initialD)
-		{
-		}
+            _d (initialD)
+        {
+        }
 
-	public:
-		const DataType* data() const
-		{
-            hopefully(d != QSharedDataPointer<DataType>(), HERE);
-			return d.data();
-		}
+    public:
+        const DataType * data () const {
+            hopefully(_d != QSharedDataPointer<DataType>(), HERE);
+            return _d.data();
+        }
 
-		const DataType* operator-> () const
-		{
-			return data();
-		}
+        const DataType * operator-> () const {
+            return data();
+        }
 
-		void clear()
-		{
-            d = QSharedDataPointer<DataType> ();
-		}
+        void clear() {
+            _d = QSharedDataPointer<DataType> ();
+        }
 
-	protected:
-        virtual const SnapshottableData* dataBase() const override
-		{
-            return dynamic_cast<const SnapshottableData*>(data());
-		}
+    protected:
+        virtual SnapshottableData const * dataBase () const override {
+            return dynamic_cast<SnapshottableData const *>(data());
+        }
 
-	private:
-        QSharedDataPointer<DataType> d;
+    private:
+        QSharedDataPointer<DataType> _d;
         friend class Snapshottable<DataType>;
-	};
+    };
 
-	// NOTE: you must initialize the DataType member in the Snapshottable
-	// constructor.  It may be the case that your derived class wishes to
-	// perform some calculation in its constructor or in the initialization
-	// of derived class members and then store that into the d member
-	// *before* it can ever be snapshotted.  But then you must use the
-	// readable()/writable() accessors to fix up the "incomplete" DataType
-	// that you passed to the constructor.
 
-public:
-    template<class ...Args>
-    Snapshottable(Args && ...args) :
-		SnapshottableBase (),
-        d (QSharedDataPointer<DataType>(new DataType (std::forward<Args>(args)...)))
-	{
-	}
-
-    virtual ~Snapshottable() override
-	{
-	}
+    // NOTE: you must initialize the DataType member in the Snapshottable
+    // constructor.  It may be the case that your derived class wishes to
+    // perform some calculation in its constructor or in the initialization
+    // of derived class members and then store that into the d member
+    // *before* it can ever be snapshotted.  But then you must use the
+    // readable()/writable() accessors to fix up the "incomplete" DataType
+    // that you passed to the constructor.
 
 public:
-    Snapshot createSnapshot() const
-	{
-		dLock.lockForRead();
-        Snapshot result (d);
-		dLock.unlock();
-		return result;
-	}
+    template <class ...Args>
+    Snapshottable (Args && ...args) :
+        SnapshottableBase (),
+        _d (QSharedDataPointer<DataType>(
+            new DataType (std::forward<Args>(args)...))
+        )
+    {
+    }
 
-    virtual SnapshotBase* createSnapshotBase() const override
-	{
+    virtual ~Snapshottable () override
+    {
+    }
+
+
+public:
+    Snapshot createSnapshot () const {
+        QReadLocker lock (&this->_dLock);
+        Snapshot result (_d);
+        return result;
+    }
+
+    virtual SnapshotBase * createSnapshotBase () const override {
         return new Snapshot (createSnapshot());
-	}
+    }
+
 
 protected:
-	// Due to the copy-on-write nature of Snapshottable objects,
-	// there is no need for the Snapshottable object to do any
-	// locks before reading
+    // Due to the copy-on-write nature of Snapshottable objects,
+    // there is no need for the Snapshottable object to do any
+    // locks before reading
 
-    DataType const & readable() const
-	{
-		return *d;
-	}
+    DataType const & readable () const
+    {
+        return *_d;
+    }
+
 
 protected:
-	// In order to prevent the case of a Snapshot being taken
-	// during an incomplete state of the Snapshottable object,
-	// you have to lock before getting write access.  When you
-	// unlock it should be in a state that is okay to have a
-	// snapshot taken
+    // In order to prevent the case of a Snapshot being taken
+    // during an incomplete state of the Snapshottable object,
+    // you have to lock before getting write access.  When you
+    // unlock it should be in a state that is okay to have a
+    // snapshot taken
 
-    DataType & writable(codeplace const & cp)
-	{
-		lockedForWrite.hopefullyEqualTo(true, cp);
-		return *d;
-	}
+    DataType & writable (codeplace const & cp)
+    {
+        _lockedForWrite.hopefullyEqualTo(true, cp);
+        return *_d;
+    }
+
 
 private:
-	// you must initialize this "d" variable in your constructor, and
-	// it is where you must put all of your state that you want to
-	// be visible outside of the Snapshottable type when a
-	// Snapshot is taken
+    // you must initialize this "d" variable in your constructor, and
+    // it is where you must put all of your state that you want to
+    // be visible outside of the Snapshottable type when a
+    // Snapshot is taken
 
-    QSharedDataPointer<DataType> d;
+    QSharedDataPointer<DataType> _d;
 };
 
 // we moc this file, though whether there are any QObjects or not may vary

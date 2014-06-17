@@ -1,7 +1,7 @@
 //
-// ThinkerPresent.cpp
+// thinkerpresent.cpp
 // This file is part of Thinker-Qt
-// Copyright (C) 2010 HostileFork.com
+// Copyright (C) 2010-2014 HostileFork.com
 //
 // Thinker-Qt is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -28,206 +28,244 @@
 //
 
 ThinkerPresentBase::ThinkerPresentBase () :
-	holder (NULL)
+    _holder (nullptr)
 {
 }
 
-ThinkerPresentBase::ThinkerPresentBase (const ThinkerPresentBase& other) :
-	holder (other.holder)
+
+ThinkerPresentBase::ThinkerPresentBase (
+    ThinkerPresentBase const & other
+) :
+    _holder (other._holder)
 {
 }
 
-ThinkerPresentBase::ThinkerPresentBase (shared_ptr<ThinkerBase> holder) :
-	holder (holder)
+
+ThinkerPresentBase::ThinkerPresentBase (
+    shared_ptr<ThinkerBase> _holder
+) :
+    _holder (_holder)
 {
 }
 
-bool ThinkerPresentBase::operator!= (const ThinkerPresentBase& other) const
+
+bool ThinkerPresentBase::operator!= (
+    ThinkerPresentBase const & other
+)
+    const
 {
-	return holder != other.holder;
+    return _holder != other._holder;
 }
 
-bool ThinkerPresentBase::operator== (const ThinkerPresentBase& other) const
+
+bool ThinkerPresentBase::operator== (
+    ThinkerPresentBase const & other
+)
+    const
 {
-	return holder == other.holder;
+    return _holder == other._holder;
 }
 
-ThinkerPresentBase& ThinkerPresentBase::operator= (const ThinkerPresentBase & other) {
-	if (this != &other) {
-		holder = other.holder;
-	}
-	return *this;
+
+ThinkerPresentBase & ThinkerPresentBase::operator= (
+    const ThinkerPresentBase & other
+) {
+    if (this != &other) {
+        _holder = other._holder;
+    }
+    return *this;
 }
 
-bool ThinkerPresentBase::hopefullyCurrentThreadIsManager(codeplace const & cp) const
+
+bool ThinkerPresentBase::hopefullyCurrentThreadIsManager (
+    codeplace const & cp
+)
+    const
 {
-    // If there are global objects or value members of classes before manager is started...
-    if (not holder) {
+    // If there are global objects or value members of classes
+    // before manager is started...
+    if (not _holder) {
         return true;
     }
-    return holder->getManager().hopefullyCurrentThreadIsManager(cp);
+    return _holder->getManager().hopefullyCurrentThreadIsManager(cp);
 }
 
-ThinkerBase & ThinkerPresentBase::getThinkerBase() {
-	hopefullyCurrentThreadIsManager(HERE);
-    return *holder;
+
+ThinkerBase & ThinkerPresentBase::getThinkerBase () {
+    hopefullyCurrentThreadIsManager(HERE);
+    return *_holder;
 }
 
-const ThinkerBase & ThinkerPresentBase::getThinkerBase() const {
-	hopefullyCurrentThreadIsManager(HERE);
-    return *holder;
+
+ThinkerBase const & ThinkerPresentBase::getThinkerBase () const {
+    hopefullyCurrentThreadIsManager(HERE);
+    return *_holder;
 }
 
-bool ThinkerPresentBase::isCanceled() const
-{
-	hopefullyCurrentThreadIsManager(HERE);
 
-    // If there are global objects or value members of classes before manager is started...
-    if (not holder)
+bool ThinkerPresentBase::isCanceled () const {
+    hopefullyCurrentThreadIsManager(HERE);
+
+    // If there are global objects or value members of classes before
+    // manager is started...
+    if (not _holder)
         return true;
 
-	const ThinkerBase & thinker (getThinkerBase());
-    shared_ptr<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
-	bool result = false;
+    ThinkerBase const & thinker = getThinkerBase();
+    auto runner = thinker.getManager().maybeGetRunnerForThinker(thinker);
+    bool result = false;
     if (runner == nullptr) {
-		result = (thinker.state == ThinkerBase::ThinkerCanceled);
-	} else {
+        result = (thinker._state == ThinkerBase::ThinkerCanceled);
+    } else {
         result = runner->isCanceled();
-	}
-	return result;
+    }
+    return result;
 }
 
-bool ThinkerPresentBase::isFinished() const
-{
-	hopefullyCurrentThreadIsManager(HERE);
 
-/*	if (holder.isNull())
-        return false; */
+bool ThinkerPresentBase::isFinished () const {
+    hopefullyCurrentThreadIsManager(HERE);
 
-	const ThinkerBase & thinker (getThinkerBase());
-    shared_ptr<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
-	bool result = false;
+    if (_holder == nullptr) {
+        // This return statement was commented out.  Why?
+        hopefullyNotReached(HERE);
+        return false;
+    }
+
+    ThinkerBase const & thinker = getThinkerBase();
+    auto runner = thinker.getManager().maybeGetRunnerForThinker(thinker);
+    bool result = false;
     if (runner == nullptr) {
-		result = (thinker.state == ThinkerBase::ThinkerFinished);
-	} else {
-		result = runner->isFinished();
-	}
-	return result;
+        result = (thinker._state == ThinkerBase::ThinkerFinished);
+    } else {
+        result = runner->isFinished();
+    }
+    return result;
 }
 
-bool ThinkerPresentBase::isPaused() const
-{
-	hopefullyCurrentThreadIsManager(HERE);
 
-/*	if (holder.isNull())
-        return false; */
+bool ThinkerPresentBase::isPaused () const {
+    hopefullyCurrentThreadIsManager(HERE);
 
-	const ThinkerBase & thinker (getThinkerBase());
-    shared_ptr<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
-	bool result = false;
+    if (_holder == nullptr) {
+        // This return statement was commented out.  Why?
+        return false;
+    }
+
+    ThinkerBase const & thinker = getThinkerBase();
+    auto runner = thinker.getManager().maybeGetRunnerForThinker(thinker);
+    bool result = false;
     if (runner == nullptr) {
-		// the thinker has either finished or been canceled
-	} else {
-		result = runner->isPaused();
-	}
-	return result;
+        // the thinker has either finished or been canceled
+    } else {
+        result = runner->isPaused();
+    }
+    return result;
 }
 
-void ThinkerPresentBase::cancel()
-{
-	hopefullyCurrentThreadIsManager(HERE);
 
-	// See QFuture for precedent... you can call cancel() on a default constructed
-	// QFuture object and it's a no-op
-    if (not holder)
+void ThinkerPresentBase::cancel () {
+    hopefullyCurrentThreadIsManager(HERE);
+
+    // Precedent set by QFuture is you can call cancel() on default constructed
+    // QFuture object and it's a no-op
+    if (not _holder)
         return;
 
-	ThinkerBase & thinker (getThinkerBase());
-    shared_ptr<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
+    ThinkerBase & thinker (getThinkerBase());
+    auto runner = thinker.getManager().maybeGetRunnerForThinker(thinker);
     if (runner == nullptr) {
-		thinker.state = ThinkerBase::ThinkerCanceled;
-	} else {
-		// No need to enforceCancel at this point (which would cause a
-		// synchronous pause of the worker thread that we'd like to avoid)
-		// ...although unruly thinkers may seem to "leak" if they stall too
-		// long before responding to wasPauseRequested() signals
-		runner->requestCancelButAlreadyCanceledIsOkay(HERE);
-	}
+        thinker._state = ThinkerBase::ThinkerCanceled;
+    } else {
+        // No need to enforceCancel at this point (which would cause a
+        // synchronous pause of the worker thread that we'd like to avoid)
+        // ...although unruly thinkers may seem to "leak" if they stall too
+        // long before responding to wasPauseRequested() signals
+        runner->requestCancelButAlreadyCanceledIsOkay(HERE);
+    }
 }
 
-void ThinkerPresentBase::pause()
-{
-	hopefullyCurrentThreadIsManager(HERE);
 
-    hopefully(holder != nullptr, HERE); // what would it mean to pause a null?  What's precedent in QFuture?
+void ThinkerPresentBase::pause () {
+    hopefullyCurrentThreadIsManager(HERE);
 
-	ThinkerBase & thinker (getThinkerBase());
-    shared_ptr<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
-    hopefully(runner != nullptr, HERE); // you can't pause a thinker that's finished or canceled
+    // what would it mean to pause a null?  What's precedent in QFuture?
+    hopefully(_holder != nullptr, HERE);
 
-	// If there is a pause, we should probably stop update signals and queue a
-	// single update at the moment of resume
-	runner->requestPause(HERE);
+    ThinkerBase & thinker (getThinkerBase());
+    auto runner = thinker.getManager().maybeGetRunnerForThinker(thinker);
+
+    // you can't pause a thinker that's finished or canceled
+    hopefully(runner != nullptr, HERE);
+
+    // If there is a pause, we should probably stop update signals and queue
+    // a single update at the moment of resume
+    runner->requestPause(HERE);
 }
 
-void ThinkerPresentBase::resume()
-{
-	hopefullyCurrentThreadIsManager(HERE);
 
-/*	hopefully(not holder.isNull(), HERE); // what would it mean to pause a null?  What's precedent in QFuture? */
+void ThinkerPresentBase::resume() {
+    hopefullyCurrentThreadIsManager(HERE);
 
-	ThinkerBase & thinker (getThinkerBase());
-    shared_ptr<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
-    hopefully(runner != nullptr, HERE); // you cannot resume a thinker that has finished or canceled
-	// If there is a pause, we should probably stop update signals and queue a
-	// single update at the moment of resume
-	runner->requestResume(HERE);
+    // what would it mean to resume a null?  What's precedent in QFuture?
+    hopefully(_holder != nullptr, HERE);
+
+    ThinkerBase & thinker = getThinkerBase();
+    auto runner = thinker.getManager().maybeGetRunnerForThinker(thinker);
+
+    // you cannot resume a thinker that has finished or canceled
+    hopefully(runner != nullptr, HERE); 
+
+    // If there is a resume, we should probably stop update signals and queue
+    // a single update at the moment of resume
+    runner->requestResume(HERE);
 }
 
-void ThinkerPresentBase::setPaused(bool paused)
-{
-	if (paused)
-		resume();
-	else
-		pause();
+
+void ThinkerPresentBase::setPaused (bool paused) {
+    if (paused)
+        resume();
+    else
+        pause();
 }
 
-void ThinkerPresentBase::togglePaused()
-{
-	if (isPaused())
-		resume();
-	else
-		pause();
+
+void ThinkerPresentBase::togglePaused () {
+    if (isPaused())
+        resume();
+    else
+        pause();
 }
 
-void ThinkerPresentBase::waitForFinished()
-{
-	hopefullyCurrentThreadIsManager(HERE);
 
-	// Following QFuture's lead in having a single waitForFinished that works
-	// for both canceled as well as non-canceled results.  They seem to throw an
-	// exception if the future had been paused...
-	hopefully(not isPaused(), HERE);
+void ThinkerPresentBase::waitForFinished () {
+    hopefullyCurrentThreadIsManager(HERE);
 
-	ThinkerBase & thinker (getThinkerBase());
+    // Following QFuture's lead in having a single waitForFinished that works
+    // for both canceled as well as non-canceled results.  They seem to throw
+    // an exception if the future had been paused...
+    hopefully(not isPaused(), HERE);
 
-    shared_ptr<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
+    ThinkerBase & thinker (getThinkerBase());
+
+    auto runner = thinker.getManager().maybeGetRunnerForThinker(thinker);
     if (runner == nullptr) {
-		// has either finished or canceled
-	} else {
-		runner->waitForFinished(HERE);
-	}
+        // has either finished or canceled
+    } else {
+        runner->waitForFinished(HERE);
+    }
 }
 
-SnapshotBase* ThinkerPresentBase::createSnapshotBase() const
-{
-	hopefullyCurrentThreadIsManager(HERE);
 
-	const ThinkerBase & thinker (getThinkerBase());
-    return static_cast<const SnapshottableBase*>(&thinker)->createSnapshotBase();
+SnapshotBase * ThinkerPresentBase::createSnapshotBase () const {
+    hopefullyCurrentThreadIsManager(HERE);
+
+    ThinkerBase const & thinker = getThinkerBase();
+
+    return thinker.createSnapshotBase();
 }
 
-ThinkerPresentBase::~ThinkerPresentBase()
-{
-	hopefullyCurrentThreadIsManager(HERE);
+
+ThinkerPresentBase::~ThinkerPresentBase () {
+    hopefullyCurrentThreadIsManager(HERE);
 }
