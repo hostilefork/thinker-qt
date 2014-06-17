@@ -28,7 +28,7 @@
 //
 
 #if THINKERQT_EXPLICIT_MANAGER
-ThinkerBase::ThinkerBase (ThinkerManager& mgr) :
+ThinkerBase::ThinkerBase (ThinkerManager & mgr) :
 	QObject (),
 	state (ThinkerOwnedByRunner),
 	mgr (mgr)
@@ -45,7 +45,7 @@ ThinkerBase::ThinkerBase () :
 }
 #endif
 
-ThinkerManager& ThinkerBase::getManager() const
+ThinkerManager & ThinkerBase::getManager() const
 {
 	return mgr;
 }
@@ -58,14 +58,14 @@ void ThinkerBase::beforeThreadDetach()
 {
 }
 
-void ThinkerBase::lockForWrite(const codeplace& cp)
+void ThinkerBase::lockForWrite(codeplace const & cp)
 {
 	hopefullyCurrentThreadIsThink(HERE);
 
 	SnapshottableBase::lockForWrite(cp);
 }
 
-void ThinkerBase::unlock(const codeplace& cp)
+void ThinkerBase::unlock(codeplace const & cp)
 {
 	hopefullyCurrentThreadIsThink(HERE);
 

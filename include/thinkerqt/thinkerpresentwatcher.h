@@ -101,13 +101,13 @@ protected:
 	friend class ThinkerManager;
 
 protected:
-	bool hopefullyCurrentThreadIsManager(const codeplace& cp) const
+	bool hopefullyCurrentThreadIsManager(codeplace const & cp) const
 		{ return present != ThinkerPresentBase() ? present.hopefullyCurrentThreadIsManager(cp) : true; }
 
 protected:
 	// Is this a good idea to export in the API?
-	ThinkerBase& getThinkerBase();
-	const ThinkerBase& getThinkerBase() const;
+	ThinkerBase & getThinkerBase();
+	const ThinkerBase & getThinkerBase() const;
 
 protected:
 	ThinkerPresentBase present;

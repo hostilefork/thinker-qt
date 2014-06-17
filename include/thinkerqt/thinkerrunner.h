@@ -66,44 +66,44 @@ public:
 	void doThreadPushIfNecessary();
 
 public:
-	bool hopefullyCurrentThreadIsRun(const codeplace& cp) const;
-	bool hopefullyCurrentThreadIsManager(const codeplace& cp) const;
+	bool hopefullyCurrentThreadIsRun(codeplace const & cp) const;
+	bool hopefullyCurrentThreadIsManager(codeplace const & cp) const;
 
 signals:
 	void breakEventLoop();
 	void resumeThinking();
 
 public:
-	void requestPause (const codeplace& cp) {
+	void requestPause (codeplace const & cp) {
 		requestPauseCore(false, cp);
 	}
 	void waitForPause() {
 		waitForPauseCore(false);
 	}
 
-	void requestPauseButCanceledIsOkay(const codeplace& cp) {
+	void requestPauseButCanceledIsOkay(codeplace const & cp) {
 		requestPauseCore(true, cp);
 	}
 	void waitForPauseButCanceledIsOkay() {
 		waitForPauseCore(true);
 	}
 
-	void requestCancel(const codeplace& cp) {
+	void requestCancel(codeplace const & cp) {
 		requestCancelCore(false, cp);
 	}
-	void requestCancelButAlreadyCanceledIsOkay(const codeplace& cp) {
+	void requestCancelButAlreadyCanceledIsOkay(codeplace const & cp) {
 		requestCancelCore(true, cp);
 	}
 
-	void requestResume(const codeplace& cp) {
+	void requestResume(codeplace const & cp) {
 		requestResumeCore(false, cp);
 	}
-	void requestResumeButCanceledIsOkay(const codeplace& cp) {
+	void requestResumeButCanceledIsOkay(codeplace const & cp) {
 		requestResumeCore(true, cp);
 	}
-	void waitForResume(const codeplace& cp);
+	void waitForResume(codeplace const & cp);
 
-	void waitForFinished(const codeplace& cp);
+	void waitForFinished(codeplace const & cp);
 
 public:
 	bool isFinished() const;
@@ -121,10 +121,10 @@ protected:
 	friend class ThinkerRunnerProxy;
 
 private:
-	void requestPauseCore(bool isCanceledOkay, const codeplace& cp);
+	void requestPauseCore(bool isCanceledOkay, codeplace const & cp);
 	void waitForPauseCore(bool isCanceledOkay);
-	void requestCancelCore(bool isAlreadyCanceledOkay, const codeplace& cp);
-	void requestResumeCore(bool isCanceledOkay, const codeplace& cp);
+	void requestCancelCore(bool isAlreadyCanceledOkay, codeplace const & cp);
+	void requestResumeCore(bool isCanceledOkay, codeplace const & cp);
 
 #ifndef Q_NO_EXCEPTIONS
 private:
@@ -141,7 +141,7 @@ private:
     QSharedPointer<ThinkerRunnerHelper> helper;
 
 	// http://www.learncpp.com/cpp-tutorial/93-overloading-the-io-operators/
-	friend QTextStream& operator<< (QTextStream& o, const State& state);
+	friend QTextStream & operator<< (QTextStream & o, const State& state);
 	friend class ThinkerRunnerHelper;
 };
 
@@ -161,7 +161,7 @@ public:
     ~ThinkerRunnerHelper () override;
 
 public:
-    bool hopefullyCurrentThreadIsRun(const codeplace& cp) const
+    bool hopefullyCurrentThreadIsRun(codeplace const & cp) const
     {
         return hopefully(QThread::currentThread() == runner.getThinker().thread(), cp);
     }
@@ -185,7 +185,7 @@ public slots:
 class ThinkerRunnerProxy : public QRunnable {
 public:
     ThinkerRunnerProxy (shared_ptr<ThinkerRunner> runner);
-	ThinkerManager& getManager();
+	ThinkerManager & getManager();
 	void run();
 	~ThinkerRunnerProxy ();
 

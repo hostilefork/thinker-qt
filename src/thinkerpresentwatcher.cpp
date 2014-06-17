@@ -52,7 +52,7 @@ void ThinkerPresentWatcherBase::doConnections()
 
 		// add to the new watch list.  note that we may have missed the "finished"
 		// signal so if it has finished, you will get an artificial "finished" re-broadcast
-		ThinkerBase& thinker (this->present.getThinkerBase());
+		ThinkerBase & thinker (this->present.getThinkerBase());
 		thinker.watchersLock.lockForWrite();
 		hopefully(not thinker.watchers.contains(this), HERE);
 		thinker.watchers.insert(this);
@@ -66,7 +66,7 @@ void ThinkerPresentWatcherBase::doDisconnections()
 {
 	if (this->present != ThinkerPresentBase ()) {
 		// remove from the old watch list.  note that a signal may still be in the queue
-		ThinkerBase& thinker (this->present.getThinkerBase());
+		ThinkerBase & thinker (this->present.getThinkerBase());
 		thinker.watchersLock.lockForWrite();
 		hopefully(thinker.watchers.remove(this), HERE);
 		thinker.watchersLock.unlock();

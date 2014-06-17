@@ -141,8 +141,8 @@ protected:
         // writes that go together and we don't want anyone to snapshot
         // the object in the middle of that.
 
-	virtual void lockForWrite(const codeplace& cp);
-	virtual void unlock(const codeplace& cp);
+	virtual void lockForWrite(codeplace const & cp);
+	virtual void unlock(codeplace const & cp);
 
 protected:
 	mutable QReadWriteLock dLock;
@@ -289,7 +289,7 @@ protected:
 	// unlock it should be in a state that is okay to have a
 	// snapshot taken
 
-    DataType & writable(const codeplace& cp)
+    DataType & writable(codeplace const & cp)
 	{
 		lockedForWrite.hopefullyEqualTo(true, cp);
 		return *d;

@@ -70,7 +70,7 @@ public:
 	virtual ~ThinkerBase ();
 
 public:
-	ThinkerManager& getManager() const;
+	ThinkerManager & getManager() const;
 
 public:
 	bool wasPauseRequested(unsigned long time = 0) const;

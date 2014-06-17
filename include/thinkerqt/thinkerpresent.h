@@ -57,7 +57,7 @@ public:
 	bool operator== (const ThinkerPresentBase& other) const;
 
 protected:
-	bool hopefullyCurrentThreadIsManager(const codeplace& cp) const;
+	bool hopefullyCurrentThreadIsManager(codeplace const & cp) const;
 	friend class ThinkerPresentWatcherBase;
 
 protected:

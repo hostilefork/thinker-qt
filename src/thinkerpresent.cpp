@@ -59,7 +59,7 @@ ThinkerPresentBase& ThinkerPresentBase::operator= (const ThinkerPresentBase & ot
 	return *this;
 }
 
-bool ThinkerPresentBase::hopefullyCurrentThreadIsManager(const codeplace& cp) const
+bool ThinkerPresentBase::hopefullyCurrentThreadIsManager(codeplace const & cp) const
 {
     // If there are global objects or value members of classes before manager is started...
     if (not holder) {
@@ -68,12 +68,12 @@ bool ThinkerPresentBase::hopefullyCurrentThreadIsManager(const codeplace& cp) co
     return holder->getManager().hopefullyCurrentThreadIsManager(cp);
 }
 
-ThinkerBase& ThinkerPresentBase::getThinkerBase() {
+ThinkerBase & ThinkerPresentBase::getThinkerBase() {
 	hopefullyCurrentThreadIsManager(HERE);
     return *holder;
 }
 
-const ThinkerBase& ThinkerPresentBase::getThinkerBase() const {
+const ThinkerBase & ThinkerPresentBase::getThinkerBase() const {
 	hopefullyCurrentThreadIsManager(HERE);
     return *holder;
 }
@@ -86,7 +86,7 @@ bool ThinkerPresentBase::isCanceled() const
     if (not holder)
         return true;
 
-	const ThinkerBase& thinker (getThinkerBase());
+	const ThinkerBase & thinker (getThinkerBase());
     shared_ptr<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
 	bool result = false;
     if (runner == nullptr) {
@@ -104,7 +104,7 @@ bool ThinkerPresentBase::isFinished() const
 /*	if (holder.isNull())
         return false; */
 
-	const ThinkerBase& thinker (getThinkerBase());
+	const ThinkerBase & thinker (getThinkerBase());
     shared_ptr<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
 	bool result = false;
     if (runner == nullptr) {
@@ -122,7 +122,7 @@ bool ThinkerPresentBase::isPaused() const
 /*	if (holder.isNull())
         return false; */
 
-	const ThinkerBase& thinker (getThinkerBase());
+	const ThinkerBase & thinker (getThinkerBase());
     shared_ptr<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
 	bool result = false;
     if (runner == nullptr) {
@@ -142,7 +142,7 @@ void ThinkerPresentBase::cancel()
     if (not holder)
         return;
 
-	ThinkerBase& thinker (getThinkerBase());
+	ThinkerBase & thinker (getThinkerBase());
     shared_ptr<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
     if (runner == nullptr) {
 		thinker.state = ThinkerBase::ThinkerCanceled;
@@ -161,7 +161,7 @@ void ThinkerPresentBase::pause()
 
     hopefully(holder != nullptr, HERE); // what would it mean to pause a null?  What's precedent in QFuture?
 
-	ThinkerBase& thinker (getThinkerBase());
+	ThinkerBase & thinker (getThinkerBase());
     shared_ptr<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
     hopefully(runner != nullptr, HERE); // you can't pause a thinker that's finished or canceled
 
@@ -176,7 +176,7 @@ void ThinkerPresentBase::resume()
 
 /*	hopefully(not holder.isNull(), HERE); // what would it mean to pause a null?  What's precedent in QFuture? */
 
-	ThinkerBase& thinker (getThinkerBase());
+	ThinkerBase & thinker (getThinkerBase());
     shared_ptr<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
     hopefully(runner != nullptr, HERE); // you cannot resume a thinker that has finished or canceled
 	// If there is a pause, we should probably stop update signals and queue a
@@ -209,7 +209,7 @@ void ThinkerPresentBase::waitForFinished()
 	// exception if the future had been paused...
 	hopefully(not isPaused(), HERE);
 
-	ThinkerBase& thinker (getThinkerBase());
+	ThinkerBase & thinker (getThinkerBase());
 
     shared_ptr<ThinkerRunner> runner (thinker.getManager().maybeGetRunnerForThinker(thinker));
     if (runner == nullptr) {
@@ -223,7 +223,7 @@ SnapshotBase* ThinkerPresentBase::createSnapshotBase() const
 {
 	hopefullyCurrentThreadIsManager(HERE);
 
-	const ThinkerBase& thinker (getThinkerBase());
+	const ThinkerBase & thinker (getThinkerBase());
     return static_cast<const SnapshottableBase*>(&thinker)->createSnapshotBase();
 }
 

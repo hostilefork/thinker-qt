@@ -31,11 +31,11 @@ namespace hoist {
 
 struct codeplace
 {
-	const char* filename;
+	char const * filename;
 	unsigned int line;
-	const char* function;
+	char const * function;
 
-	codeplace (const char* filename, unsigned int line, const char* function) :
+	codeplace (char const * filename, unsigned int line, char const * function) :
 		filename (filename),
 		line (line),
 		function (function)
@@ -46,7 +46,7 @@ struct codeplace
 #define HERE codeplace (__FILE__, __LINE__, __FUNCTION__)
 #define PLACE(str) HERE
 
-inline bool hopefullyNotReached(const char* message, const codeplace& cp)
+inline bool hopefullyNotReached(char const * message, codeplace const & cp)
 {
 	qt_assert_x(message, cp.function, cp.filename, cp.line);
 
@@ -67,7 +67,7 @@ inline bool hopefullyNotReached(const char* message, const codeplace& cp)
 	return false;
 }
 
-inline bool hopefully(bool condition, const codeplace& cp)
+inline bool hopefully(bool condition, codeplace const & cp)
 {
 	if (not condition) {
 		hopefullyNotReached("assertion failure", cp);
@@ -76,7 +76,7 @@ inline bool hopefully(bool condition, const codeplace& cp)
 	return true;
 }
 
-inline bool hopefullyNotReached(const codeplace& cp)
+inline bool hopefullyNotReached(codeplace const & cp)
 {
 	return hopefullyNotReached("unreachable code", cp);
 }
@@ -84,28 +84,28 @@ inline bool hopefullyNotReached(const codeplace& cp)
 template <class TrackType>
 class tracked {
 public:
-	tracked (const TrackType& value, const codeplace& /* cp */) :
+	tracked (const TrackType& value, codeplace const & /* cp */) :
 		value (value)
 	{
 	}
 
 public:
-    void assign(const TrackType& newValue, const codeplace& /* cp */)
+    void assign(const TrackType& newValue, codeplace const & /* cp */)
 	{
 		value = newValue;
 	}
-	void ensure(const TrackType& newValue, const codeplace& cp)
+	void ensure(const TrackType& newValue, codeplace const & cp)
 	{
 		if (value != newValue)
 			assign(newValue, cp);
 	}
-	bool hopefullyAlter(const TrackType& newValue, const codeplace& cp)
+	bool hopefullyAlter(const TrackType& newValue, codeplace const & cp)
 	{
 		bool result (hopefully(newValue != value, cp));
 		assign(newValue, cp);
 		return result;
 	}
-	bool hopefullyTransition(const TrackType& oldValue, const TrackType& newValue, const codeplace& cp)
+	bool hopefullyTransition(const TrackType& oldValue, const TrackType& newValue, codeplace const & cp)
 	{
 		bool result (hopefully(newValue != oldValue, cp));
 		assign(newValue, cp);
@@ -113,27 +113,27 @@ public:
 	}
 
 public:
-	bool hopefullyEqualTo(const TrackType& goodValue, const codeplace& cp) const
+	bool hopefullyEqualTo(const TrackType& goodValue, codeplace const & cp) const
 	{
 		return hopefully(value == goodValue, cp);
 	}
-	bool hopefullyInSet(const TrackType& goodValue1, const TrackType& goodValue2, const codeplace& cp) const
+	bool hopefullyInSet(const TrackType& goodValue1, const TrackType& goodValue2, codeplace const & cp) const
 	{
-		return hopefully((value == goodValue1) || (value == goodValue2), cp);
+		return hopefully((value == goodValue1) or (value == goodValue2), cp);
 	}
-	bool hopefullyInSet(const TrackType& goodValue1, const TrackType& goodValue2, const TrackType& goodValue3, const codeplace& cp) const
+	bool hopefullyInSet(const TrackType& goodValue1, const TrackType& goodValue2, const TrackType& goodValue3, codeplace const & cp) const
 	{
-		return hopefully((value == goodValue1) || (value == goodValue2) || (value == goodValue3), cp);
+		return hopefully((value == goodValue1) or (value == goodValue2) or (value == goodValue3), cp);
 	}
-	bool hopefullyNotEqualTo(const TrackType& badValue, const codeplace& cp)
+	bool hopefullyNotEqualTo(const TrackType& badValue, codeplace const & cp)
 	{
 		return hopefully (value != badValue, cp);
 	}
-	bool hopefullyNotInSet(const TrackType& badValue1, const TrackType& badValue2, const codeplace& cp) const
+	bool hopefullyNotInSet(const TrackType& badValue1, const TrackType& badValue2, codeplace const & cp) const
 	{
         return hopefully((value != badValue1) and (value != badValue2), cp);
 	}
-	bool hopefullyNotInSet(const TrackType& badValue1, const TrackType& badValue2, const TrackType& badValue3, const codeplace& cp) const
+	bool hopefullyNotInSet(const TrackType& badValue1, const TrackType& badValue2, const TrackType& badValue3, codeplace const & cp) const
 	{
         return hopefully((value != badValue1) and (value != badValue2) and (value != badValue3), cp);
 	}
@@ -153,7 +153,7 @@ private:
 };
 
 template < class DestType, class SourceType >
-DestType cast_hopefully(SourceType src, const codeplace& /* cp */)
+DestType cast_hopefully(SourceType src, codeplace const & /* cp */)
 {
 	return static_cast< DestType >(src);
 }

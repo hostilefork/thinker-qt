@@ -29,13 +29,13 @@ SnapshottableBase::SnapshottableBase () :
 {
 }
 
-void SnapshottableBase::lockForWrite(const codeplace& cp)
+void SnapshottableBase::lockForWrite(codeplace const & cp)
 {
 	lockedForWrite.hopefullyTransition(false, true, cp);
 	dLock.lockForWrite();
 }
 
-void SnapshottableBase::unlock(const codeplace& cp)
+void SnapshottableBase::unlock(codeplace const & cp)
 {
 	lockedForWrite.hopefullyTransition(true, false, cp);
 	dLock.unlock();

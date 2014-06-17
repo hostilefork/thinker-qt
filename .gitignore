@@ -1,0 +1,3 @@
+!.gitignore
+examples/build*
+examples/mandelbrot/mandelbrot.pro.user
