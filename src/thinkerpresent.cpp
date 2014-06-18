@@ -28,7 +28,8 @@
 //
 
 ThinkerPresentBase::ThinkerPresentBase () :
-    _holder (nullptr)
+    _holder (nullptr),
+    _thread (QThread::currentThread())
 {
 }
 
@@ -36,7 +37,8 @@ ThinkerPresentBase::ThinkerPresentBase () :
 ThinkerPresentBase::ThinkerPresentBase (
     ThinkerPresentBase const & other
 ) :
-    _holder (other._holder)
+    _holder (other._holder),
+    _thread (QThread::currentThread())
 {
 }
 
@@ -44,7 +46,8 @@ ThinkerPresentBase::ThinkerPresentBase (
 ThinkerPresentBase::ThinkerPresentBase (
     shared_ptr<ThinkerBase> _holder
 ) :
-    _holder (_holder)
+    _holder (_holder),
+    _thread (QThread::currentThread())
 {
 }
 
@@ -77,34 +80,37 @@ ThinkerPresentBase & ThinkerPresentBase::operator= (
 }
 
 
-bool ThinkerPresentBase::hopefullyCurrentThreadIsManager (
+bool ThinkerPresentBase::hopefullyCurrentThreadIsDifferent (
     codeplace const & cp
 )
     const
 {
-    // If there are global objects or value members of classes
-    // before manager is started...
+    // The primary restriction on communicating with a thinker with a
+    // Present or a PresentWatcher is that we are not doing so on
+    // the same thread that the Thinker itself is running on.  We
+    // can take snapshots and such from pretty much any other thread
+    // in the system.
     if (not _holder) {
         return true;
     }
-    return _holder->getManager().hopefullyCurrentThreadIsManager(cp);
+    return hopefully(QThread::currentThread() != _holder->thread(), cp);
 }
 
 
 ThinkerBase & ThinkerPresentBase::getThinkerBase () {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsDifferent(HERE);
     return *_holder;
 }
 
 
 ThinkerBase const & ThinkerPresentBase::getThinkerBase () const {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsDifferent(HERE);
     return *_holder;
 }
 
 
 bool ThinkerPresentBase::isCanceled () const {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsDifferent(HERE);
 
     // If there are global objects or value members of classes before
     // manager is started...
@@ -124,7 +130,7 @@ bool ThinkerPresentBase::isCanceled () const {
 
 
 bool ThinkerPresentBase::isFinished () const {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsDifferent(HERE);
 
     if (_holder == nullptr) {
         // This return statement was commented out.  Why?
@@ -145,7 +151,7 @@ bool ThinkerPresentBase::isFinished () const {
 
 
 bool ThinkerPresentBase::isPaused () const {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsDifferent(HERE);
 
     if (_holder == nullptr) {
         // This return statement was commented out.  Why?
@@ -165,7 +171,7 @@ bool ThinkerPresentBase::isPaused () const {
 
 
 void ThinkerPresentBase::cancel () {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsDifferent(HERE);
 
     // Precedent set by QFuture is you can call cancel() on default constructed
     // QFuture object and it's a no-op
@@ -187,7 +193,7 @@ void ThinkerPresentBase::cancel () {
 
 
 void ThinkerPresentBase::pause () {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsDifferent(HERE);
 
     // what would it mean to pause a null?  What's precedent in QFuture?
     hopefully(_holder != nullptr, HERE);
@@ -205,7 +211,7 @@ void ThinkerPresentBase::pause () {
 
 
 void ThinkerPresentBase::resume() {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsDifferent(HERE);
 
     // what would it mean to resume a null?  What's precedent in QFuture?
     hopefully(_holder != nullptr, HERE);
@@ -239,7 +245,7 @@ void ThinkerPresentBase::togglePaused () {
 
 
 void ThinkerPresentBase::waitForFinished () {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsDifferent(HERE);
 
     // Following QFuture's lead in having a single waitForFinished that works
     // for both canceled as well as non-canceled results.  They seem to throw
@@ -258,7 +264,7 @@ void ThinkerPresentBase::waitForFinished () {
 
 
 SnapshotBase * ThinkerPresentBase::createSnapshotBase () const {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsDifferent(HERE);
 
     ThinkerBase const & thinker = getThinkerBase();
 
@@ -267,5 +273,5 @@ SnapshotBase * ThinkerPresentBase::createSnapshotBase () const {
 
 
 ThinkerPresentBase::~ThinkerPresentBase () {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefully(QThread::currentThread() == _thread, HERE);
 }

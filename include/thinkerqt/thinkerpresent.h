@@ -68,7 +68,7 @@ public:
 protected:
     friend class ThinkerPresentWatcherBase;
 
-    bool hopefullyCurrentThreadIsManager(codeplace const & cp) const;
+    bool hopefullyCurrentThreadIsDifferent (codeplace const & cp) const;
 
 
 protected:
@@ -151,6 +151,9 @@ public:
 
 protected:
     shared_ptr<ThinkerBase> _holder;
+
+    // Should this be DEBUG only?
+    QThread * _thread;
 };
 
 // we moc this file, though whether there are any QObjects or not may vary

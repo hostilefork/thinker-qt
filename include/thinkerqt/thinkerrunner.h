@@ -78,6 +78,8 @@ public:
 
     bool hopefullyCurrentThreadIsManager(codeplace const & cp) const;
 
+    bool hopefullyCurrentThreadIsNotThinker(codeplace const & cp) const;
+
 
 signals:
     void breakEventLoop();

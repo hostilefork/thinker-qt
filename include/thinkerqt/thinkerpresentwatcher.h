@@ -125,11 +125,11 @@ protected:
 
 
 protected:
-    bool hopefullyCurrentThreadIsManager(codeplace const & cp) const {
+    bool hopefullyCurrentThreadIsDifferent(codeplace const & cp) const {
         if (_present == ThinkerPresentBase()) {
             return true;
         } else {
-            return _present.hopefullyCurrentThreadIsManager(cp);
+            return _present.hopefullyCurrentThreadIsDifferent(cp);
         }
     }
 

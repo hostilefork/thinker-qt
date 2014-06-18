@@ -157,6 +157,14 @@ ThinkerRunner::ThinkerRunner (shared_ptr<ThinkerBase> holder) :
 }
 
 
+bool ThinkerRunner::hopefullyCurrentThreadIsNotThinker (
+    codeplace const & cp
+) const
+{
+    return getManager().hopefullyCurrentThreadIsNotThinker(cp);
+}
+
+
 bool ThinkerRunner::hopefullyCurrentThreadIsManager (
     codeplace const & cp
 )
@@ -164,6 +172,7 @@ bool ThinkerRunner::hopefullyCurrentThreadIsManager (
 {
     return getManager().hopefullyCurrentThreadIsManager(cp);
 }
+
 
 
 bool ThinkerRunner::hopefullyCurrentThreadIsRun (
@@ -376,7 +385,7 @@ void ThinkerRunner::requestPauseCore (
     bool isCanceledOkay,
     codeplace const & cp
 ) {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsNotThinker(HERE);
     getManager().processThreadPushes();
 
     QMutexLocker lock (&_stateMutex);
@@ -403,7 +412,7 @@ void ThinkerRunner::requestPauseCore (
 
 void ThinkerRunner::waitForPauseCore (bool isCanceledOkay)
 {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsNotThinker(HERE);
     getManager().processThreadPushes();
 
     QMutexLocker lock (&_stateMutex);
@@ -431,7 +440,7 @@ void ThinkerRunner::requestCancelCore (
     bool isCanceledOkay,
     codeplace const & cp
 ) {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsNotThinker(cp);
     getManager().processThreadPushes();
 
     QMutexLocker lock (&_stateMutex);
@@ -466,7 +475,7 @@ void ThinkerRunner::requestResumeCore (
     bool isCanceledOkay,
     codeplace const & cp
 ) {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsNotThinker(cp);
     getManager().processThreadPushes();
 
     waitForPauseCore(isCanceledOkay);
@@ -490,9 +499,7 @@ void ThinkerRunner::requestResumeCore (
 
 
 void ThinkerRunner::waitForResume (codeplace const & cp) {
-    Q_UNUSED(cp);
-
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsNotThinker(cp);
     getManager().processThreadPushes();
 
     QMutexLocker lock (&_stateMutex);
@@ -515,9 +522,7 @@ void ThinkerRunner::waitForResume (codeplace const & cp) {
 
 
 void ThinkerRunner::waitForFinished (codeplace const & cp) {
-    Q_UNUSED(cp);
-
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsNotThinker(cp);
 
     QMutexLocker lock (&_stateMutex);
 
@@ -537,7 +542,7 @@ void ThinkerRunner::waitForFinished (codeplace const & cp) {
 
 
 bool ThinkerRunner::isFinished () const {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsNotThinker(HERE);
 
     QMutexLocker lock (&_stateMutex);
 
@@ -562,7 +567,7 @@ bool ThinkerRunner::isFinished () const {
 
 
 bool ThinkerRunner::isCanceled () const {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsNotThinker(HERE);
 
     QMutexLocker lock (&_stateMutex);
 
@@ -572,7 +577,7 @@ bool ThinkerRunner::isCanceled () const {
 
 
 bool ThinkerRunner::isPaused () const {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsNotThinker(HERE);
 
     QMutexLocker lock (&_stateMutex);
 

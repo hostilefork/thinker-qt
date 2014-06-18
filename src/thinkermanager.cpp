@@ -42,7 +42,18 @@ ThinkerManager & ThinkerManager::getGlobalManager () {
 
 ThinkerManager::ThinkerManager () :
     QObject (),
-    _anyThinkerWrittenThrottler (400)
+
+    // Hardcoded value; should probably be configurable.  Optional parameter
+    // to the constructor?
+    _anyThinkerWrittenThrottler (400),
+
+    // We create this Mutex recursively because the checks for whether a
+    // thread is in the thread pool or not require the map at the moment.
+    // Those checks may be run when a higher level routine has locked the
+    // mutex.  It may be desirable to have those assertions use a different
+    // (and possibly faster) method for the test so we wouldn't have to
+    // make this allow nested locks.
+    _mapsMutex (QMutex::Recursive)
 {
     hopefullyCurrentThreadIsManager(HERE);
 
@@ -92,6 +103,22 @@ bool ThinkerManager::hopefullyCurrentThreadIsNotManager (
 }
 
 
+
+bool ThinkerManager::hopefullyThreadIsNotThinker (
+    const QThread & thread,
+    codeplace const & cp
+) {
+    return hopefully(maybeGetRunnerForThread(thread) == nullptr, cp);
+}
+
+
+bool ThinkerManager::hopefullyCurrentThreadIsNotThinker (
+    codeplace const & cp
+) {
+    return hopefullyThreadIsNotThinker(*QThread::currentThread(), cp);
+}
+
+
 bool ThinkerManager::hopefullyThreadIsThinker (
     const QThread & thread,
     codeplace const & cp
@@ -138,7 +165,7 @@ void ThinkerManager::createRunnerForThinker (
 
 
 void ThinkerManager::ensureThinkersPaused (codeplace const & cp) {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsNotThinker(HERE);
 
     // we have to make a copy of the map
     QMutexLocker lock (&_mapsMutex);
@@ -164,7 +191,7 @@ void ThinkerManager::ensureThinkersPaused (codeplace const & cp) {
 
 
 void ThinkerManager::ensureThinkersResumed (codeplace const & cp) {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsNotThinker(HERE);
 
     QMutexLocker lock (&_mapsMutex);
 
@@ -233,7 +260,7 @@ void ThinkerManager::requestAndWaitForCancelButAlreadyCanceledIsOkay (
 
 
 void ThinkerManager::ensureThinkerFinished (ThinkerBase & thinker) {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsNotThinker(HERE);
 
     shared_ptr<ThinkerRunner> runner = maybeGetRunnerForThinker(thinker);
     if (runner != nullptr) {
@@ -326,7 +353,7 @@ void ThinkerManager::removeFromThreadMap (
 
 
 void ThinkerManager::waitForPushToThread (ThinkerRunner * runner) {
-    hopefullyCurrentThreadIsNotManager(HERE);
+    hopefullyCurrentThreadIsThinker(HERE);
 
     QMutexLocker lock (&_pushThreadMutex);
 
@@ -338,7 +365,7 @@ void ThinkerManager::waitForPushToThread (ThinkerRunner * runner) {
 
 
 void ThinkerManager::processThreadPushesUntil (ThinkerRunner * runner) {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsNotThinker(HERE);
 
     QMutexLocker lock (&_pushThreadMutex);
     forever {

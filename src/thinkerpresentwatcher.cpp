@@ -27,7 +27,7 @@ ThinkerPresentWatcherBase::ThinkerPresentWatcherBase () :
     _milliseconds (200),
     _notificationThrottler ()
 {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsDifferent(HERE);
 }
 
 
@@ -41,7 +41,7 @@ ThinkerPresentWatcherBase::ThinkerPresentWatcherBase (
     _milliseconds (200),
     _notificationThrottler ()
 {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsDifferent(HERE);
     doConnections();
 }
 
@@ -97,7 +97,7 @@ void ThinkerPresentWatcherBase::doDisconnections () {
 
 
 void ThinkerPresentWatcherBase::setPresentBase (ThinkerPresentBase present) {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsDifferent(HERE);
 
     if (this->_present == present)
         return;
@@ -111,14 +111,14 @@ void ThinkerPresentWatcherBase::setPresentBase (ThinkerPresentBase present) {
 
 
 ThinkerPresentBase ThinkerPresentWatcherBase::presentBase () {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsDifferent(HERE);
 
     return _present;
 }
 
 
 void ThinkerPresentWatcherBase::setThrottleTime (unsigned int milliseconds) {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsDifferent(HERE);
 
     this->_milliseconds = milliseconds;
     if (_notificationThrottler) {
@@ -128,7 +128,7 @@ void ThinkerPresentWatcherBase::setThrottleTime (unsigned int milliseconds) {
 
 
 ThinkerPresentWatcherBase::~ThinkerPresentWatcherBase () {
-    hopefullyCurrentThreadIsManager(HERE);
+    hopefullyCurrentThreadIsDifferent(HERE);
 
     doDisconnections();
 }

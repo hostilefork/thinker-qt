@@ -243,7 +243,7 @@ public:
             // This restriction will have to be relaxed, but it may still be
             // helpful to offer some kind of virtual method hook to do thread
             // checking.
-            hopefullyCurrentThreadIsManager(HERE);
+            hopefullyCurrentThreadIsDifferent(HERE);
 
             SnapshotBase * allocatedSnapshot = createSnapshotBase();
             Snapshot * ptr = dynamic_cast<Snapshot *>(allocatedSnapshot);
@@ -277,8 +277,8 @@ public:
     public:
         typename Thinker::Snapshot createSnapshot () const
         {
-            hopefullyCurrentThreadIsManager(HERE);
-            SnapshotBase * allocatedSnapshot (createSnapshotBase());
+            hopefullyCurrentThreadIsDifferent(HERE);
+            SnapshotBase * allocatedSnapshot = createSnapshotBase();
 
             Snapshot * ptr = dynamic_cast<Snapshot *>(allocatedSnapshot);
             hopefully(ptr != nullptr, HERE);

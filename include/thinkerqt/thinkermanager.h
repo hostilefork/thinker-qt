@@ -86,6 +86,14 @@ public:
 
     bool hopefullyCurrentThreadIsNotManager (codeplace const & cp);
 
+
+    bool hopefullyThreadIsNotThinker (
+        QThread const & thread,
+        codeplace const & cp
+    );
+
+    bool hopefullyCurrentThreadIsNotThinker (codeplace const & cp);
+
     bool hopefullyThreadIsThinker (
         QThread const & thread,
         codeplace const & cp
