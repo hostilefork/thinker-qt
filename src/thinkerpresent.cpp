@@ -210,7 +210,7 @@ void ThinkerPresentBase::pause () {
 }
 
 
-void ThinkerPresentBase::resume() {
+void ThinkerPresentBase::resumeMaybeEmitDone() {
     hopefullyCurrentThreadIsDifferent(HERE);
 
     // what would it mean to resume a null?  What's precedent in QFuture?
@@ -230,7 +230,7 @@ void ThinkerPresentBase::resume() {
 
 void ThinkerPresentBase::setPaused (bool paused) {
     if (paused)
-        resume();
+        resumeMaybeEmitDone();
     else
         pause();
 }
@@ -238,7 +238,7 @@ void ThinkerPresentBase::setPaused (bool paused) {
 
 void ThinkerPresentBase::togglePaused () {
     if (isPaused())
-        resume();
+        resumeMaybeEmitDone();
     else
         pause();
 }

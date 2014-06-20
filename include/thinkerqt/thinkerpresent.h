@@ -123,7 +123,7 @@ public:
 
     void pause ();
 
-    void resume ();
+    void resumeMaybeEmitDone ();
 
     void setPaused (bool paused);
 

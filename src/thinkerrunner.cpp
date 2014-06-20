@@ -289,7 +289,7 @@ bool ThinkerRunner::runThinker ()
             try {
 #endif
                 if (firstRun)
-                    getThinker().start();
+                    getThinker().startMaybeEmitDone();
                 else
                     // returns 0 if quit() or exit(), N if exit(N)
                     static_cast<void>(exec());  

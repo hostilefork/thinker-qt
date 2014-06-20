@@ -133,26 +133,44 @@ protected:
 
 
 signals:
-    // TODO: Should the Thinker be forced to announce that it has returned
-    // from the thinking function even though a pause was not requested
-    // because it intends to process the event loop?  It is somewhat error
-    // prone to allow a return from a non-paused thinker without enforcing
-    // a done() signal, but essential to allow for the
-    // thinking to involve signal/slot processing.
+    // The done signal is used by the ThinkerPresentWatcher.  Once it was
+    // the responsibility of a thinker's start/resume methods to emit this
+    // signal, but that was switched to returning true or false.  Given
+    // that change there may be better ways of notifying the watcher of
+    // completion...but to keep things working as they were the signal
+    // has been left here and is emitted by wrapping functions.
 
     void done ();
 
 
-protected:
-    virtual void start () = 0;
+private:
+    bool startMaybeEmitDone() {
+        if (start()) {
+            emit done();
+            return true;
+        }
+        return false;
+    }
 
-    virtual void resume () {
+    bool resumeMaybeEmitDone() {
+        if (resume()) {
+            emit done();
+            return true;
+        }
+        return false;
+    }
+
+protected:
+    virtual bool start () = 0;
+
+    virtual bool resume () {
         // Making a restartable thinker typically involves extra work to
         // make it into a coroutine.  You don't have to do that work if
         // you don't intend on pausing and restarting thinkers.  In that
         // case, wasPauseRequested really just means wasStopRequested...
 
         hopefullyNotReached("Thinker not designed to be resumable.", HERE);
+        return false;
     }
 
 

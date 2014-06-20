@@ -94,8 +94,8 @@ public slots:
         _present.pause();
     }
 
-    void resume () {
-        _present.resume();
+    void resumeMaybeEmitDone () {
+        _present.resumeMaybeEmitDone();
     }
 
     void setPaused (bool paused) {

@@ -48,7 +48,7 @@ RenderThinker::RenderThinker(double centerX, double centerY, double scaleFactor,
 {
 }
 
-void RenderThinker::start()
+bool RenderThinker::start()
 {
         int halfWidth = resultSize.width() / 2;
         int halfHeight = resultSize.height() / 2;
@@ -108,5 +108,5 @@ void RenderThinker::start()
                 ++pass;
             }
         }
-        emit done();
+        return true;
 }
