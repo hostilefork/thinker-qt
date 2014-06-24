@@ -191,14 +191,12 @@ ThinkerManager & ThinkerRunner::getManager () const
 }
 
 
-ThinkerBase const & ThinkerRunner::getThinker () const
-{
+ThinkerBase const & ThinkerRunner::getThinker () const {
     return *_holder;
 }
 
 
-ThinkerBase & ThinkerRunner::getThinker ()
-{
+ThinkerBase & ThinkerRunner::getThinker () {
     return *_holder;
 }
 

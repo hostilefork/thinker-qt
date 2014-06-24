@@ -137,9 +137,9 @@ protected:
 protected:
     // https://github.com/hostilefork/thinker-qt/issues/4
 
-    ThinkerBase & getThinkerBase();
+    ThinkerBase & getThinkerBase ();
 
-    ThinkerBase const & getThinkerBase() const;
+    ThinkerBase const & getThinkerBase () const;
 
 
 protected:
