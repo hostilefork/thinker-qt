@@ -93,7 +93,7 @@ class SnapshotBase
 {
 public:
     virtual void clear () = 0;
-    virtual const SnapshottableData * dataBase () const = 0;
+    virtual const SnapshottableData & dataBase () const = 0;
 
     // Avoids "deleting object of abstract class type 'SnapshotBase' which
     // has non-virtual destructor will cause undefined behavior" error.
@@ -211,13 +211,13 @@ public:
         }
 
     public:
-        const DataType * data () const {
+        DataType const & data () const {
             hopefully(_d != QSharedDataPointer<DataType>(), HERE);
-            return _d.data();
+            return *_d.data();
         }
 
-        const DataType * operator-> () const {
-            return data();
+        DataType const * operator-> () const {
+            return &data();
         }
 
         void clear() {
@@ -225,8 +225,8 @@ public:
         }
 
     protected:
-        virtual SnapshottableData const * dataBase () const override {
-            return dynamic_cast<SnapshottableData const *>(data());
+        virtual SnapshottableData const & dataBase () const override {
+            return dynamic_cast<SnapshottableData const &>(data());
         }
 
     private:
