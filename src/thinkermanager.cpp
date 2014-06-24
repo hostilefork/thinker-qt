@@ -57,17 +57,15 @@ ThinkerManager::ThinkerManager () :
 {
     hopefullyCurrentThreadIsManager(HERE);
 
-    // Using Qt4-compatible connect method for now
-
     connect(
-        &_anyThinkerWrittenThrottler, SIGNAL(throttled()),
-        this, SIGNAL(anyThinkerWritten()),
+        &_anyThinkerWrittenThrottler, &SignalThrottler::throttled,
+        this, &ThinkerManager::anyThinkerWritten,
         Qt::DirectConnection
     );
 
     connect(
-        this, SIGNAL(pushToThreadMayBeNeeded()),
-        this, SLOT(doThreadPushesIfNecessary()),
+        this, &ThinkerManager::pushToThreadMayBeNeeded,
+        this, &ThinkerManager::doThreadPushesIfNecessary,
         Qt::QueuedConnection
     );
 }

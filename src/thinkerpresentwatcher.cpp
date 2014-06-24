@@ -54,14 +54,14 @@ void ThinkerPresentWatcherBase::doConnections () {
         );
 
         connect(
-            _notificationThrottler.data(), SIGNAL(throttled()),
-            this, SIGNAL(written()),
+            _notificationThrottler.data(), &SignalThrottler::throttled,
+            this, &ThinkerPresentWatcherBase::written,
             Qt::AutoConnection
         );
 
         connect(
-            &_present.getThinkerBase(), SIGNAL(done()),
-            this, SIGNAL(finished()),
+            &_present.getThinkerBase(), &ThinkerBase::done,
+            this, &ThinkerPresentWatcherBase::finished,
             Qt::AutoConnection
         );
 

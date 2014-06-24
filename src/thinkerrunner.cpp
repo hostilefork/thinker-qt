@@ -235,15 +235,14 @@ bool ThinkerRunner::runThinker ()
             new ThinkerRunnerHelper(*this)
         );
 
-        // Maintain Qt4 compatibility using string-based connect
         connect(
-            this, SIGNAL(breakEventLoop()),
-            _helper.data(), SLOT(queuedQuit()),
+            this, &ThinkerRunner::breakEventLoop,
+            _helper.data(), &ThinkerRunnerHelper::queuedQuit,
             Qt::QueuedConnection
         );
         connect(
-            &getThinker(), SIGNAL(done()),
-            _helper.data(), SLOT(markFinished()),
+            &getThinker(), &ThinkerBase::done,
+            _helper.data(), &ThinkerRunnerHelper::markFinished,
             Qt::DirectConnection
         );
 

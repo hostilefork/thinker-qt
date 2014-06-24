@@ -32,7 +32,7 @@ SignalThrottler::SignalThrottler (
     _timerMutex (nullptr == parent ? new QMutex () : nullptr)
 {
     _timer.setSingleShot(true);
-    connect(&_timer, SIGNAL(timeout()), this, SLOT(onTimeout()));
+    connect(&_timer, &QTimer::timeout, this, &SignalThrottler::onTimeout);
 }
 
 
