@@ -216,13 +216,15 @@ shared_ptr<ThinkerRunner> ThinkerManager::maybeGetRunnerForThread (
 shared_ptr<ThinkerRunner> ThinkerManager::maybeGetRunnerForThinker (
     ThinkerBase const & thinker
 ) {
+    using State = ThinkerBase::State;
+
     QMutexLocker lock (&_mapsMutex);
 
     shared_ptr<ThinkerRunner> result = _thinkerMap.value(&thinker, nullptr);
     if (not result) {
         hopefully(
-            (thinker._state == ThinkerBase::ThinkerCanceled)
-            or (thinker._state == ThinkerBase::ThinkerFinished),
+            (thinker._state == State::ThinkerCanceled)
+            or (thinker._state == State::ThinkerFinished),
             HERE
         );
     }
@@ -245,19 +247,23 @@ const ThinkerBase * ThinkerManager::getThinkerForThreadMaybeNull (
 void ThinkerManager::requestAndWaitForCancelButAlreadyCanceledIsOkay (
     ThinkerBase & thinker
 ) {
+    using State = ThinkerBase::State;
+
     shared_ptr<ThinkerRunner> runner = maybeGetRunnerForThinker(thinker);
     if (not runner) {
-        thinker._state = ThinkerBase::ThinkerCanceled;
+        thinker._state = State::ThinkerCanceled;
     } else {
         // thread should be paused or finished... or possibly aborted
         runner->requestCancelButAlreadyCanceledIsOkay(HERE);
         runner->waitForFinished(HERE);
     }
-    hopefully(thinker._state == ThinkerBase::ThinkerCanceled, HERE);
+    hopefully(thinker._state == State::ThinkerCanceled, HERE);
 }
 
 
 void ThinkerManager::ensureThinkerFinished (ThinkerBase & thinker) {
+    using State = ThinkerBase::State;
+
     hopefullyCurrentThreadIsNotThinker(HERE);
 
     shared_ptr<ThinkerRunner> runner = maybeGetRunnerForThinker(thinker);
@@ -275,10 +281,10 @@ void ThinkerManager::ensureThinkerFinished (ThinkerBase & thinker) {
 
         runner->waitForFinished(HERE);
         hopefully(runner->isFinished(), HERE);
-        thinker._state = ThinkerBase::ThinkerFinished;
+        thinker._state = State::ThinkerFinished;
     }
 
-    hopefully(thinker._state == ThinkerBase::ThinkerFinished, HERE);
+    hopefully(thinker._state == State::ThinkerFinished, HERE);
 }
 
 
@@ -315,15 +321,17 @@ void ThinkerManager::removeFromThinkerMap (
     shared_ptr<ThinkerRunner> runner,
     bool wasCanceled
 ) {
+    using State = ThinkerBase::State;
+
     QMutexLocker lock (&_mapsMutex);
 
     ThinkerBase & thinker = runner->getThinker();
     hopefully(_thinkerMap.remove(&thinker) == 1, HERE);
 
-    hopefully(thinker._state == ThinkerBase::ThinkerOwnedByRunner, HERE);
+    hopefully(thinker._state == State::ThinkerOwnedByRunner, HERE);
     thinker._state = wasCanceled
-        ? ThinkerBase::ThinkerCanceled
-        : ThinkerBase::ThinkerFinished;
+        ? State::ThinkerCanceled
+        : State::ThinkerFinished;
 }
 
 

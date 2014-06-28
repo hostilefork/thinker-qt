@@ -41,17 +41,17 @@ class ThinkerRunner : public QEventLoop
 
 
 private:
-    enum State {
-        RunnerQueued, // => ThreadPush
-        RunnerQueuedButPaused, // => Queued, Paused
-        RunnerThreadPush, // => Thinking
-        RunnerThinking, // => Pausing, Canceling, Finished
-        RunnerPausing, // => Paused
-        RunnerPaused, // => Canceled, Resuming
-        RunnerResuming, // => Thinking
-        RunnerFinished, // => Canceled
-        RunnerCanceling, // => Canceled
-        RunnerCanceled // terminal
+    enum class State {
+        Queued, // => ThreadPush
+        QueuedButPaused, // => Queued, Paused
+        ThreadPush, // => Thinking
+        Thinking, // => Pausing, Canceling, Finished
+        Pausing, // => Paused
+        Paused, // => Canceled, Resuming
+        Resuming, // => Thinking
+        Finished, // => Canceled
+        Canceling, // => Canceled
+        Canceled // terminal
     };
 
 

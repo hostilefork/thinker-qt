@@ -62,7 +62,7 @@ class ThinkerBase : public QObject, virtual public SnapshottableBase {
 
 
 private:
-    enum State {
+    enum class State {
         ThinkerOwnedByRunner = 0,
         ThinkerFinished = 1,
         ThinkerCanceled = 2

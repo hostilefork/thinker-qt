@@ -35,37 +35,39 @@ inline QTextStream & operator<< (
     QTextStream & o,
     ThinkerRunner::State const & state
 ) {
-    o << "ThinkerRunner::";
+    using State = ThinkerRunner::State;
+
+    o << "ThinkerRunner::State::";
     switch (state) {
-    case ThinkerRunner::RunnerQueued:
-        o << "RunnerQueued";
+    case State::Queued:
+        o << "Queued";
         break;
-    case ThinkerRunner::RunnerQueuedButPaused:
-        o << "RunnerQueuedButPaused";
+    case State::QueuedButPaused:
+        o << "QueuedButPaused";
         break;
-    case ThinkerRunner::RunnerThreadPush:
-        o << "RunnerThreadPush";
+    case State::ThreadPush:
+        o << "ThreadPush";
         break;
-    case ThinkerRunner::RunnerThinking:
-        o << "RunnerThinking";
+    case State::Thinking:
+        o << "Thinking";
         break;
-    case ThinkerRunner::RunnerPausing:
-        o << "RunnerPausing";
+    case State::Pausing:
+        o << "Pausing";
         break;
-    case ThinkerRunner::RunnerPaused:
-        o << "RunnerPaused";
+    case State::Paused:
+        o << "Paused";
         break;
-    case ThinkerRunner::RunnerResuming:
-        o << "RunnerResuming";
+    case State::Resuming:
+        o << "Resuming";
         break;
-    case ThinkerRunner::RunnerFinished:
-        o << "RunnerFinished";
+    case State::Finished:
+        o << "Finished";
         break;
-    case ThinkerRunner::RunnerCanceling:
-        o << "RunnerCanceling";
+    case State::Canceling:
+        o << "Canceling";
         break;
-    case ThinkerRunner::RunnerCanceled:
-        o << "RunnerCanceled";
+    case State::Canceled:
+        o << "Canceled";
         break;
     default:
         hopefullyNotReached(HERE);
@@ -94,18 +96,20 @@ void ThinkerRunnerHelper::queuedQuit () {
 
 
 void ThinkerRunnerHelper::markFinished () {
+    using State = ThinkerRunner::State;
+
     hopefullyCurrentThreadIsRun(HERE);
 
     QMutexLocker lock (&_runner._stateMutex);
 
-    if (_runner._state == ThinkerRunner::RunnerCanceling) {
+    if (_runner._state == State::Canceling) {
         // we don't let it transition to finished if abort is requested
     } else {
         _runner._state.hopefullyInSet(
-            ThinkerRunner::RunnerThinking, ThinkerRunner::RunnerPausing,
+            State::Thinking, State::Pausing,
             HERE
         );
-        _runner._state.hopefullyAlter(ThinkerRunner::RunnerFinished, HERE);
+        _runner._state.hopefullyAlter(State::Finished, HERE);
         _runner._stateWasChanged.wakeOne();
         _runner.quit();
     }
@@ -124,7 +128,7 @@ ThinkerRunnerHelper::~ThinkerRunnerHelper () {
 
 ThinkerRunner::ThinkerRunner (shared_ptr<ThinkerBase> holder) :
     QEventLoop (),
-    _state (RunnerQueued, HERE),
+    _state (State::Queued, HERE),
     _holder (holder),
     _helper ()
 {
@@ -207,25 +211,24 @@ void ThinkerRunner::doThreadPushIfNecessary ()
 
     QMutexLocker lock (&_stateMutex);
 
-    if (_state == RunnerThreadPush) {
+    if (_state == State::ThreadPush) {
         hopefully(_helper, HERE);
         getThinker().moveToThread(_helper->thread());
-        _state.hopefullyAlter(RunnerThinking, HERE);
+        _state.hopefullyAlter(State::Thinking, HERE);
         _stateWasChanged.wakeOne();
     }
 }
 
 
-bool ThinkerRunner::runThinker ()
-{
+bool ThinkerRunner::runThinker () {
     _stateMutex.lock();
 
-    if (_state == RunnerQueuedButPaused) {
+    if (_state == State::QueuedButPaused) {
         _stateWasChanged.wait(&_stateMutex);
     }
-    _state.hopefullyInSet(RunnerQueued, RunnerCanceled, HERE);
+    _state.hopefullyInSet(State::Queued, State::Canceled, HERE);
 
-    if (_state == RunnerQueued) {
+    if (_state == State::Queued) {
         // Create from within the thread's run() in order to make sure that
         // our helper object has the thread affinity of the new executing
         // thread, not of the QThread object that spawned the execution
@@ -248,7 +251,7 @@ bool ThinkerRunner::runThinker ()
         // Now that we know what thread the Thinker will be running on, we ask
         // the main thread to push it onto our current thread allocated to us
         // by the pool
-        _state.hopefullyAlter(RunnerThreadPush, HERE);
+        _state.hopefullyAlter(State::ThreadPush, HERE);
         _stateWasChanged.wakeOne();
         _stateMutex.unlock();
 
@@ -259,8 +262,11 @@ bool ThinkerRunner::runThinker ()
         // any of our code gets called from the manager thread then we'll
         // preempt that.
         _stateMutex.lock();
-        _state.hopefullyInSet(RunnerThinking, RunnerCanceling, HERE);
-        bool didCancelOrFinish = (_state == RunnerCanceling);
+        _state.hopefullyInSet(
+            State::Thinking, State::Canceling, State::Pausing, HERE
+        );
+        bool didCancelOrFinish = (_state == State::Canceling);
+        bool skipToPause = (_state == State::Pausing);
         _stateMutex.unlock();
 
         hopefully(getThinker().thread() == QThread::currentThread(), HERE);
@@ -309,14 +315,14 @@ bool ThinkerRunner::runThinker ()
 
             _stateMutex.lock();
 
-            if (_state == RunnerFinished) {
+            if (_state == State::Finished) {
 
                 didCancelOrFinish = true;
 
-            } else if (_state == RunnerCanceling) {
+            } else if (_state == State::Canceling) {
 
                 _state.hopefullyTransition(
-                    RunnerCanceling, RunnerCanceled, HERE
+                    State::Canceling, State::Canceled, HERE
                 );
 
                 _stateWasChanged.wakeOne();
@@ -324,7 +330,9 @@ bool ThinkerRunner::runThinker ()
 
             } else {
 
-                _state.hopefullyTransition(RunnerPausing, RunnerPaused, HERE);
+                _state.hopefullyTransition(
+                    State::Pausing, State::Paused, HERE
+                );
                 _stateWasChanged.wakeOne();
                 _stateWasChanged.wait(&_stateMutex);
 
@@ -333,7 +341,7 @@ bool ThinkerRunner::runThinker ()
                 // there is no need to pass through a "Canceling" state while
                 // the event loop is still running.)
 
-                if (_state == RunnerCanceled) {
+                if (_state == State::Canceled) {
                     didCancelOrFinish = true;
                 } else {
 #ifndef Q_NO_EXCEPTIONS
@@ -343,7 +351,7 @@ bool ThinkerRunner::runThinker ()
                     hopefully(possiblyAbleToContinue, HERE);
 #endif
                     _state.hopefullyTransition(
-                        RunnerResuming, RunnerThinking,
+                        State::Resuming, State::Thinking,
                         HERE
                     );
                     _stateWasChanged.wakeOne();
@@ -368,10 +376,10 @@ bool ThinkerRunner::runThinker ()
     }
 
     _state.hopefullyInSet(
-        RunnerCanceled, RunnerCanceling, RunnerFinished, HERE
+        State::Canceled, State::Canceling, State::Finished, HERE
     );
 
-    bool wasCanceled = (_state != RunnerFinished);
+    bool wasCanceled = (_state != State::Finished);
     _stateMutex.unlock();
 
     return wasCanceled;
@@ -387,19 +395,27 @@ void ThinkerRunner::requestPauseCore (
 
     QMutexLocker lock (&_stateMutex);
 
-    if (_state == RunnerQueued) {
-        _state.hopefullyTransition(RunnerQueued, RunnerQueuedButPaused, HERE);
+    if (_state == State::Queued) {
+        _state.hopefullyTransition(
+            State::Queued, State::QueuedButPaused, HERE
+        );
         _stateWasChanged.wakeOne();
-    } else if (_state == RunnerFinished) {
+    } else if (_state == State::Finished) {
         // do nothing
     } else if (
         isCanceledOkay and (
-            (_state == RunnerCanceling) or (_state == RunnerCanceled)
+            (_state == State::Canceling) or (_state == State::Canceled)
+        )
+    ) {
+        // do nothing
+    } else if (
+        isPausedOkay and (
+            (_state == State::Pausing) or (_state == State::Paused)
         )
     ) {
         // do nothing
     } else {
-        _state.hopefullyTransition(RunnerThinking, RunnerPausing, cp);
+        _state.hopefullyTransition(State::Thinking, State::Pausing, cp);
         _stateWasChanged.wakeOne();
 
         emit breakEventLoop();
@@ -415,20 +431,20 @@ void ThinkerRunner::waitForPauseCore (bool isCanceledOkay)
     QMutexLocker lock (&_stateMutex);
 
     if (
-        (_state == RunnerFinished)
-        or (_state == RunnerPaused)
-        or (_state == RunnerQueuedButPaused)
+        (_state == State::Finished)
+        or (_state == State::Paused)
+        or (_state == State::QueuedButPaused)
     ) {
         // do nothing
-    } else if (isCanceledOkay and (_state == RunnerCanceled)) {
+    } else if (isCanceledOkay and (_state == State::Canceled)) {
         // do nothing
-    } else if (isCanceledOkay and (_state == RunnerCanceling)) {
+    } else if (isCanceledOkay and (_state == State::Canceling)) {
         _stateWasChanged.wait(&_stateMutex);
-        _state.hopefullyEqualTo(RunnerCanceled, HERE);
+        _state.hopefullyEqualTo(State::Canceled, HERE);
     } else {
-        _state.hopefullyEqualTo(RunnerPausing, HERE);
+        _state.hopefullyEqualTo(State::Pausing, HERE);
         _stateWasChanged.wait(&_stateMutex);
-        _state.hopefullyInSet(RunnerPaused, RunnerFinished, HERE);
+        _state.hopefullyInSet(State::Paused, State::Finished, HERE);
     }
 }
 
@@ -443,16 +459,16 @@ void ThinkerRunner::requestCancelCore (
     QMutexLocker lock (&_stateMutex);
 
     if (
-        (_state == RunnerQueued)
-        or (_state == RunnerFinished)
-        or (_state == RunnerPaused)
-        or (_state == RunnerQueuedButPaused)
+        (_state == State::Queued)
+        or (_state == State::Finished)
+        or (_state == State::Paused)
+        or (_state == State::QueuedButPaused)
     ) {
-        _state.hopefullyAlter(RunnerCanceled, cp);
+        _state.hopefullyAlter(State::Canceled, cp);
         _stateWasChanged.wakeOne();
     } else if (
         isCanceledOkay and (
-            (_state == RunnerCanceled) or (_state == RunnerCanceling)
+            (_state == State::Canceled) or (_state == State::Canceling)
         )
     ) {
         // do nothing
@@ -460,7 +476,7 @@ void ThinkerRunner::requestCancelCore (
         // No one can request a pause or stop besides the worker
         // We should not multiply request stops and pauses...
         // so if it's not initializing and not finished it must be thinking!
-        _state.hopefullyTransition(RunnerThinking, RunnerCanceling, cp);
+        _state.hopefullyTransition(State::Thinking, State::Canceling, cp);
         _stateWasChanged.wakeOne();
 
         emit breakEventLoop();
@@ -479,15 +495,15 @@ void ThinkerRunner::requestResumeCore (
 
     QMutexLocker lock (&_stateMutex);
 
-    if (_state == RunnerQueuedButPaused) {
-        _state.hopefullyAlter(RunnerQueued, HERE);
+    if (_state == State::QueuedButPaused) {
+        _state.hopefullyAlter(State::Queued, HERE);
         _stateWasChanged.wakeOne();
-    } else if (_state == RunnerFinished) {
+    } else if (_state == State::Finished) {
         // do nothing
-    } else if (isCanceledOkay and (_state == RunnerCanceled)) {
+    } else if (isCanceledOkay and (_state == State::Canceled)) {
         // do nothing
     } else {
-        _state.hopefullyTransition(RunnerPaused, RunnerResuming, cp);
+        _state.hopefullyTransition(State::Paused, State::Resuming, cp);
 
         // only one should be waiting, max...
         _stateWasChanged.wakeOne();
@@ -502,16 +518,16 @@ void ThinkerRunner::waitForResume (codeplace const & cp) {
     QMutexLocker lock (&_stateMutex);
 
     if (
-        (_state == RunnerThinking)
-        or (_state == RunnerFinished)
-        or (_state == RunnerQueued)
+        (_state == State::Thinking)
+        or (_state == State::Finished)
+        or (_state == State::Queued)
     ) {
         // do nothing
     } else {
-        _state.hopefullyEqualTo(RunnerResuming, HERE);
+        _state.hopefullyEqualTo(State::Resuming, HERE);
         _stateWasChanged.wait(&_stateMutex);
         _state.hopefullyInSet(
-            RunnerResuming, RunnerThinking, RunnerFinished,
+            State::Resuming, State::Thinking, State::Finished,
             HERE
         );
     }
@@ -523,7 +539,7 @@ void ThinkerRunner::waitForFinished (codeplace const & cp) {
 
     QMutexLocker lock (&_stateMutex);
 
-    if ((_state == RunnerQueued) || (_state == RunnerThreadPush)) {
+    if ((_state == State::Queued) or (_state == State::ThreadPush)) {
         lock.unlock();
         getManager().processThreadPushesUntil(this);
         lock.relock();
@@ -531,10 +547,10 @@ void ThinkerRunner::waitForFinished (codeplace const & cp) {
 
     // Caller should know if they paused the thinker, and resume it before
     // calling this routine!
-    if (_state == RunnerThinking)
+    if (_state == State::Thinking)
         _stateWasChanged.wait(&_stateMutex);
 
-    _state.hopefullyInSet(RunnerCanceled, RunnerFinished, HERE);
+    _state.hopefullyInSet(State::Canceled, State::Finished, HERE);
 }
 
 
@@ -544,15 +560,15 @@ bool ThinkerRunner::isFinished () const {
     QMutexLocker lock (&_stateMutex);
 
     switch (_state) {
-        case RunnerQueued:
-        case RunnerThinking:
-        case RunnerPausing:
-        case RunnerPaused:
-        case RunnerResuming:
+        case State::Queued:
+        case State::Thinking:
+        case State::Pausing:
+        case State::Paused:
+        case State::Resuming:
             return false;
-        case RunnerFinished:
+        case State::Finished:
             return true;
-        case RunnerCanceled:
+        case State::Canceled:
             // used to return indeterminate but removed tribool dependency
             return true;
         default:
@@ -568,8 +584,8 @@ bool ThinkerRunner::isCanceled () const {
 
     QMutexLocker lock (&_stateMutex);
 
-    return (_state == RunnerCanceled)
-        or (_state == RunnerCanceling);
+    return (_state == State::Canceled)
+        or (_state == State::Canceling);
 }
 
 
@@ -578,9 +594,9 @@ bool ThinkerRunner::isPaused () const {
 
     QMutexLocker lock (&_stateMutex);
 
-    return (_state == RunnerPaused)
-        or (_state == RunnerPausing)
-        or (_state == RunnerQueuedButPaused);
+    return (_state == State::Paused)
+        or (_state == State::Pausing)
+        or (_state == State::QueuedButPaused);
 }
 
 
@@ -589,19 +605,19 @@ bool ThinkerRunner::wasPauseRequested (unsigned long time) const {
 
     QMutexLocker lock (&_stateMutex);
 
-    if ((_state == RunnerPausing) or (_state == RunnerCanceling))
+    if ((_state == State::Pausing) or (_state == State::Canceling))
         return true;
 
-    _state.hopefullyEqualTo(RunnerThinking, HERE);
+    _state.hopefullyEqualTo(State::Thinking, HERE);
     if (time == 0)
         return false;
 
     bool didStateChange = _stateWasChanged.wait(&_stateMutex, time);
     if (didStateChange) {
-        _state.hopefullyInSet(RunnerPausing, RunnerCanceling, HERE);
+        _state.hopefullyInSet(State::Pausing, State::Canceling, HERE);
     } else {
         // should not have changed
-        _state.hopefullyEqualTo(RunnerThinking, HERE);
+        _state.hopefullyEqualTo(State::Thinking, HERE);
     }
 
     return didStateChange;
@@ -621,7 +637,7 @@ ThinkerRunner::~ThinkerRunner () {
     // or the manager thread... it's controlled by a QSharedPointer
 
     _state.hopefullyInSet(
-        RunnerCanceled, RunnerCanceling, RunnerFinished, HERE
+        State::Canceled, State::Canceling, State::Finished, HERE
     );
 }
 

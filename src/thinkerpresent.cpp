@@ -110,6 +110,8 @@ ThinkerBase const & ThinkerPresentBase::getThinkerBase () const {
 
 
 bool ThinkerPresentBase::isCanceled () const {
+    using State = ThinkerBase::State;
+
     hopefullyCurrentThreadIsDifferent(HERE);
 
     // If there are global objects or value members of classes before
@@ -121,7 +123,7 @@ bool ThinkerPresentBase::isCanceled () const {
     auto runner = thinker.getManager().maybeGetRunnerForThinker(thinker);
     bool result = false;
     if (runner == nullptr) {
-        result = (thinker._state == ThinkerBase::ThinkerCanceled);
+        result = (thinker._state == State::ThinkerCanceled);
     } else {
         result = runner->isCanceled();
     }
@@ -130,6 +132,8 @@ bool ThinkerPresentBase::isCanceled () const {
 
 
 bool ThinkerPresentBase::isFinished () const {
+    using State = ThinkerBase::State;
+
     hopefullyCurrentThreadIsDifferent(HERE);
 
     if (_holder == nullptr) {
@@ -142,7 +146,7 @@ bool ThinkerPresentBase::isFinished () const {
     auto runner = thinker.getManager().maybeGetRunnerForThinker(thinker);
     bool result = false;
     if (runner == nullptr) {
-        result = (thinker._state == ThinkerBase::ThinkerFinished);
+        result = (thinker._state == State::ThinkerFinished);
     } else {
         result = runner->isFinished();
     }
@@ -171,6 +175,8 @@ bool ThinkerPresentBase::isPaused () const {
 
 
 void ThinkerPresentBase::cancel () {
+    using State = ThinkerBase::State;
+
     hopefullyCurrentThreadIsDifferent(HERE);
 
     // Precedent set by QFuture is you can call cancel() on default constructed
@@ -181,7 +187,7 @@ void ThinkerPresentBase::cancel () {
     ThinkerBase & thinker (getThinkerBase());
     auto runner = thinker.getManager().maybeGetRunnerForThinker(thinker);
     if (runner == nullptr) {
-        thinker._state = ThinkerBase::ThinkerCanceled;
+        thinker._state = State::ThinkerCanceled;
     } else {
         // No need to enforceCancel at this point (which would cause a
         // synchronous pause of the worker thread that we'd like to avoid)

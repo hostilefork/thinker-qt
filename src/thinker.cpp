@@ -30,7 +30,7 @@
 #if THINKERQT_EXPLICIT_MANAGER
 ThinkerBase::ThinkerBase (ThinkerManager & mgr) :
     QObject (),
-    _state (ThinkerOwnedByRunner),
+    _state (State::ThinkerOwnedByRunner),
     _mgr (mgr)
 {
     getManager().hopefullyCurrentThreadIsManager(HERE);
@@ -80,7 +80,7 @@ bool ThinkerBase::wasPauseRequested (unsigned long time) const {
 
     auto runner = getManager().maybeGetRunnerForThinker(*this);
     if (runner == nullptr) {
-        hopefully(_state == ThinkerFinished, HERE);
+        hopefully(_state == State::ThinkerFinished, HERE);
         return false;
     }
     return runner->wasPauseRequested(time);
@@ -93,7 +93,7 @@ void ThinkerBase::pollForStopException (unsigned long time) const {
 
     auto runner = getManager().maybeGetRunnerForThinker(*this);
     if (runner == nullptr) {
-        hopefully(_state == ThinkerFinished, HERE);
+        hopefully(_state == State::ThinkerFinished, HERE);
     } else {
         runner->pollForStopException(time);
     }
