@@ -89,15 +89,23 @@ signals:
 
 public:
     void requestPause (codeplace const & cp) {
-        requestPauseCore(false, cp);
+        requestPauseCore(false, false, cp);
+    }
+
+    void requestPauseButPausedIsOkay (codeplace const &cp) {
+        requestPauseCore(true, false, cp);
     }
 
     void waitForPause() {
         waitForPauseCore(false);
     }
 
+    void requestPauseButPausedOrCanceledIsOkay (codeplace const & cp) {
+        requestPauseCore(true, true, cp);
+    }
+
     void requestPauseButCanceledIsOkay (codeplace const & cp) {
-        requestPauseCore(true, cp);
+        requestPauseCore(false, true, cp);
     }
 
     void waitForPauseButCanceledIsOkay () {
@@ -146,7 +154,11 @@ protected:
 
 
 private:
-    void requestPauseCore (bool isCanceledOkay, codeplace const & cp);
+    void requestPauseCore (
+        bool isPausedOkay,
+        bool isCanceledOkay,
+        codeplace const & cp
+    );
 
     void waitForPauseCore (bool isCanceledOkay);
 

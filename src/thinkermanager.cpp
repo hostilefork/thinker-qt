@@ -177,7 +177,7 @@ void ThinkerManager::ensureThinkersPaused (codeplace const & cp) {
     // aborting, as they may be freed by the ThinkerPresent, not yet returned).
 
     for (auto & runner : mapCopy) {
-        runner->requestPauseButCanceledIsOkay(cp);
+        runner->requestPauseButPausedOrCanceledIsOkay(cp);
     }
 
     // Second pass: wait for all the thinkers to get their code off the stack.

@@ -36,8 +36,7 @@ SignalThrottler::SignalThrottler (
 }
 
 
-void SignalThrottler::enterThreadCheck ()
-{
+void SignalThrottler::enterThreadCheck () {
     if (_timerMutex)
         _timerMutex->lock();
     else
@@ -45,37 +44,32 @@ void SignalThrottler::enterThreadCheck ()
 }
 
 
-void SignalThrottler::exitThreadCheck ()
-{
+void SignalThrottler::exitThreadCheck () {
     if (_timerMutex)
         _timerMutex->unlock();
 }
 
 
-void SignalThrottler::setMillisecondsDefault (int milliseconds)
-{
+void SignalThrottler::setMillisecondsDefault (int milliseconds) {
     // This lets you change the throttle but any emits (including one currently
     // being processed) will possibly use the old value
     _millisecondsDefault.fetchAndStoreRelaxed(milliseconds);
 }
 
 
-void SignalThrottler::onTimeout()
-{
+void SignalThrottler::onTimeout() {
     _lastEmit.start();
     emit throttled();
     _nextEmit = QTime ();
 }
 
 
-void SignalThrottler::emitThrottled ()
-{
+void SignalThrottler::emitThrottled () {
     emitThrottled(_millisecondsDefault);
 }
 
 
-void SignalThrottler::emitThrottled (int milliseconds)
-{
+void SignalThrottler::emitThrottled (int milliseconds) {
     // There is some overhead associated with _timers, signals, etc.
     // Don't set _timer if time we'd wait to signal is less than that value.
     // TODO: get this number from timing data, perhaps gathered at startup?
@@ -113,8 +107,7 @@ void SignalThrottler::emitThrottled (int milliseconds)
 }
 
 
-bool SignalThrottler::postpone ()
-{
+bool SignalThrottler::postpone () {
     bool result = false;
 
     enterThreadCheck();
@@ -131,6 +124,5 @@ bool SignalThrottler::postpone ()
 }
 
 
-SignalThrottler::~SignalThrottler ()
-{
+SignalThrottler::~SignalThrottler () {
 }

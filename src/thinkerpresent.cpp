@@ -93,18 +93,21 @@ bool ThinkerPresentBase::hopefullyCurrentThreadIsDifferent (
     if (not _holder) {
         return true;
     }
-    return hopefully(QThread::currentThread() != _holder->thread(), cp);
+
+    auto runner = _holder->_mgr.maybeGetRunnerForThinker(*_holder);
+    if (not runner)
+        return true;
+
+    return hopefully(QThread::currentThread() != runner->thread(), cp);
 }
 
 
 ThinkerBase & ThinkerPresentBase::getThinkerBase () {
-    hopefullyCurrentThreadIsDifferent(HERE);
     return *_holder;
 }
 
 
 ThinkerBase const & ThinkerPresentBase::getThinkerBase () const {
-    hopefullyCurrentThreadIsDifferent(HERE);
     return *_holder;
 }
 

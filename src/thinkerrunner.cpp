@@ -205,8 +205,7 @@ ThinkerBase & ThinkerRunner::getThinker () {
 }
 
 
-void ThinkerRunner::doThreadPushIfNecessary ()
-{
+void ThinkerRunner::doThreadPushIfNecessary () {
     hopefullyCurrentThreadIsManager(HERE);
 
     QMutexLocker lock (&_stateMutex);
@@ -288,20 +287,24 @@ bool ThinkerRunner::runThinker () {
 
         while (not didCancelOrFinish) {
 
+            if (not skipToPause) {
 #ifndef Q_NO_EXCEPTIONS
-            try {
+                try {
 #endif
-                if (firstRun)
-                    getThinker().startMaybeEmitDone();
-                else
-                    // returns 0 if quit() or exit(), N if exit(N)
-                    static_cast<void>(exec());  
+                    if (firstRun)
+                        getThinker().startMaybeEmitDone();
+                    else
+                        // returns 0 if quit() or exit(), N if exit(N)
+                        static_cast<void>(exec());
 
 #ifndef Q_NO_EXCEPTIONS
-            } catch (const StopException& e) {
-                possiblyAbleToContinue = false;
-            }
+                } catch (const StopException& e) {
+                    possiblyAbleToContinue = false;
+                }
 #endif
+            } else {
+                skipToPause = false;
+            }
 
             // we can get here if either the thinker itself announces being
             // finished or if we get a call to breakEventLoop()
@@ -387,6 +390,7 @@ bool ThinkerRunner::runThinker () {
 
 
 void ThinkerRunner::requestPauseCore (
+    bool isPausedOkay,
     bool isCanceledOkay,
     codeplace const & cp
 ) {
@@ -423,8 +427,7 @@ void ThinkerRunner::requestPauseCore (
 }
 
 
-void ThinkerRunner::waitForPauseCore (bool isCanceledOkay)
-{
+void ThinkerRunner::waitForPauseCore (bool isCanceledOkay) {
     hopefullyCurrentThreadIsNotThinker(HERE);
     getManager().processThreadPushes();
 
@@ -654,14 +657,12 @@ ThinkerRunnerProxy::ThinkerRunnerProxy (shared_ptr<ThinkerRunner> runner) :
 }
 
 
-ThinkerManager & ThinkerRunnerProxy::getManager ()
-{
+ThinkerManager & ThinkerRunnerProxy::getManager () {
     return _runner->getManager();
 }
 
 
-void ThinkerRunnerProxy::run ()
-{
+void ThinkerRunnerProxy::run () {
     getManager().addToThreadMap(_runner, *QThread::currentThread());
 
     bool wasCanceled = _runner->runThinker();
