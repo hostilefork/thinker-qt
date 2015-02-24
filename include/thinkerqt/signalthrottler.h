@@ -34,10 +34,14 @@
 //
 // SignalThrottler
 //
-// A signal throttler is just a timer with a memory of when the last signal
-// was emitted.  It is used to avoid emitting signals too frequently, but
-// will always ensure at least one signal will be emitted between the time
+// A signal throttler is basically a timer with a memory of when the last
+// signal was emitted.  It is used to avoid emitting signals too frequently,
+// but will always ensure at least one signal will be emitted between the time
 // you make the call and the elapsed time you provide.
+//
+// There is a technical issue because a QTimer cannot be started or stopped
+// from any thread other than the one that owns it.  So a thread that wants
+// to schedule an emit must do so with a queued rescheduling option.
 //
 // NOTE: If you call with a long throttle followed by a call with a short
 // throttle, the short throttle duration will override the longer one.  You
@@ -51,6 +55,13 @@ class SignalThrottler : public QObject
 {
     Q_OBJECT
 
+private:
+    // There is some overhead associated with _timers, signals, etc.
+    // Don't set _timer if time we'd wait to signal is less than that value.
+    // TODO: get this number from timing data, perhaps gathered at startup?
+
+    static const int overheadMsec = 5;
+
 public:
     SignalThrottler (int milliseconds = 0, QObject* parent = nullptr);
 
@@ -61,11 +72,6 @@ public:
     void setMillisecondsDefault (int milliseconds);
 
     void emitThrottled (int milliseconds);
-
-    // Because we are dealing with a delay, it may be the case that
-    // we don't want the signal to happen.  Postpone clears any
-    // pending events and returns whether an event was pending
-    bool postpone ();
 
 
 public slots:
@@ -78,10 +84,12 @@ public slots:
 
 signals:
     void throttled ();
+    void rescheduled ();
 
 
 private slots:
     void onTimeout ();
+    void onReschedule ();
 
 
 private:

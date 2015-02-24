@@ -27,12 +27,22 @@ SignalThrottler::SignalThrottler (
     QObject * parent
 ) :
     QObject (parent),
+    _lastEmit (QTime::currentTime()), // easier to lie than handle null case
     _millisecondsDefault (milliseconds),
     _timer (),
-    _timerMutex (nullptr == parent ? new QMutex () : nullptr)
+    _timerMutex (parent ? nullptr : new QMutex ())
 {
     _timer.setSingleShot(true);
-    connect(&_timer, &QTimer::timeout, this, &SignalThrottler::onTimeout);
+    connect(
+        &_timer, &QTimer::timeout,
+        this, &SignalThrottler::onTimeout,
+        Qt::DirectConnection
+    );
+    connect(
+        this, &SignalThrottler::rescheduled,
+        this, &SignalThrottler::onReschedule,
+        Qt::AutoConnection
+    );
 }
 
 
@@ -58,9 +68,65 @@ void SignalThrottler::setMillisecondsDefault (int milliseconds) {
 
 
 void SignalThrottler::onTimeout() {
-    _lastEmit.start();
-    emit throttled();
-    _nextEmit = QTime ();
+    QTime emitTime = QTime::currentTime();
+
+    emit throttled(); // likely queued, but could be direct... :-/
+
+    enterThreadCheck();
+
+    _lastEmit = emitTime;
+
+    // They would have only sent us a _nextEmit if they expected it to
+    // be happening *sooner* than a pending signal.  Which means there is
+    // a reschedule.  Reschedule can handle null times
+
+    if (_nextEmit <= _lastEmit)
+        _nextEmit = QTime ();
+
+    exitThreadCheck();
+}
+
+
+void SignalThrottler::onReschedule() {
+    bool shouldEmit = false; // don't emit inside of thread check
+
+    enterThreadCheck();
+
+    // There is some overhead associated with _timers, signals, etc.
+    // Don't set _timer if time we'd wait to signal is less than that value.
+    // TODO: get this number from timing data, perhaps gathered at startup?
+
+    static const int overheadMsec = 5;
+
+    if (_nextEmit.isNull()) {
+        // we could have gotten a reschedule, and then another reschedule
+        // if the timings kept shortening, and zeroed out one.  So this
+        // can happen.
+    }
+    else {
+        int deltaMilliseconds = _lastEmit.msecsTo(_nextEmit);
+
+        if (deltaMilliseconds < 0) {
+            // forget it, the moment's passed and we already emitted...
+            _nextEmit = QTime ();
+        }
+        else if (deltaMilliseconds < overheadMsec) {
+            // don't bother resetting a timer, just emit the signal
+            shouldEmit = true;
+            _nextEmit = QTime ();
+            _lastEmit = QTime::currentTime();
+        }
+        else {
+            // go ahead and set (or reset) the timer.
+
+            _timer.start(deltaMilliseconds);
+        }
+    }
+
+    exitThreadCheck();
+
+    if (shouldEmit)
+        emit throttled();
 }
 
 
@@ -70,57 +136,39 @@ void SignalThrottler::emitThrottled () {
 
 
 void SignalThrottler::emitThrottled (int milliseconds) {
-    // There is some overhead associated with _timers, signals, etc.
-    // Don't set _timer if time we'd wait to signal is less than that value.
-    // TODO: get this number from timing data, perhaps gathered at startup?
 
-    static const int overheadMsec = 5;
-
-    QTime currentTime = QTime::currentTime();
+    bool shouldReschedule = false; // don't emit inside threadcheck
 
     enterThreadCheck();
 
-    QTime worstCaseEmitTime
-        = _lastEmit.isNull()
-        ? currentTime
-        : _lastEmit.addMSecs(milliseconds);
+    QTime worstCaseEmitTime = QTime::currentTime().addMSecs(milliseconds);
 
-    int deltaMilliseconds = currentTime.msecsTo(worstCaseEmitTime);
-
-    if (deltaMilliseconds < overheadMsec) {
-
-        if (not _nextEmit.isNull()) {
-            _timer.stop();
-            _nextEmit = QTime ();
-        }
-
-        _lastEmit.start();
-        emit throttled();
-
-    } else if (_nextEmit.isNull() or (_nextEmit > worstCaseEmitTime)) {
-
-        _timer.start(deltaMilliseconds);
+    if (_nextEmit.isNull()) {
         _nextEmit = worstCaseEmitTime;
+        shouldReschedule = true;
+    }
+    else {
+        int deltaMilliseconds = _nextEmit.msecsTo(worstCaseEmitTime);
+
+        if (deltaMilliseconds < 0) {
+            // The next emit will actually happen earlier than we're
+            // requesting, so don't worry about it.
+        }
+        else if (deltaMilliseconds < overheadMsec) {
+            // same... don't bother with a new request, we won't be
+            // able to update soon enough
+        }
+        else {
+            // go ahead and update the scheduling
+            _nextEmit = worstCaseEmitTime;
+            shouldReschedule = true;
+        }
     }
 
     exitThreadCheck();
-}
 
-
-bool SignalThrottler::postpone () {
-    bool result = false;
-
-    enterThreadCheck();
-
-    if (not _nextEmit.isNull()) {
-        _timer.stop();
-        _nextEmit = QTime ();
-        result = true;
-    }
-
-    exitThreadCheck();
-
-    return result;
+    if (shouldReschedule)
+        emit rescheduled();
 }
 
 
