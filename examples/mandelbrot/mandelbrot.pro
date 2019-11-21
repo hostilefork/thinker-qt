@@ -4,8 +4,7 @@ THINKER_SRC = ../../src
 THINKER_INC = ../../include/thinkerqt
 
 HEADERS       = mandelbrotwidget.h \
-                renderthread.h \
-    ../../include/thinkerqt/thinkerrunner.h
+                renderthread.h
 SOURCES       = main.cpp \
                 mandelbrotwidget.cpp \
                 renderthread.cpp
@@ -22,7 +21,8 @@ HEADERS     += $$THINKER_INC/signalthrottler.h \
                $$THINKER_INC/thinker.h \
                $$THINKER_INC/thinkermanager.h \
                $$THINKER_INC/thinkerpresentwatcher.h \
-               $$THINKER_SRC/thinkerrunner.h
+               $$THINKER_INC/thinkerrunner.h \
+               $$THINKER_INC/thinkerbase.h
 
 INCLUDEPATH += ../../include
 QMAKE_CXXFLAGS += -std=c++0x

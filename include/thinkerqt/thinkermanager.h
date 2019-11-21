@@ -28,7 +28,7 @@
 #include <QMap>
 
 #include "defs.h"
-#include "thinker.h"
+#include "thinkerbase.h"
 #include "thinkerpresent.h"
 
 class ThinkerRunner;
