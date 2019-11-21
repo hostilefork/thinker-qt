@@ -293,15 +293,15 @@ public:
         }
 
     public:
-        typename Thinker::Snapshot createSnapshot () const
+        const typename Thinker::Snapshot createSnapshot () const
         {
             hopefullyCurrentThreadIsDifferent(HERE);
-            SnapshotBase * allocatedSnapshot = createSnapshotBase();
+            const SnapshotBase * allocatedSnapshot = createSnapshotBase();
 
-            Snapshot * ptr = dynamic_cast<Snapshot *>(allocatedSnapshot);
+            const Snapshot * ptr = dynamic_cast<const Snapshot *>(allocatedSnapshot);
             hopefully(ptr != nullptr, HERE);
 
-            Snapshot result = *ptr;
+            const Snapshot result = *ptr;
             delete allocatedSnapshot;
             return result;
         }
