@@ -76,7 +76,7 @@ public:
     ThinkerBase ();
 #endif
 
-    virtual ~ThinkerBase ();
+    virtual ~ThinkerBase () override;
 
 
 public:

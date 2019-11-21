@@ -63,7 +63,7 @@ bool RenderThinker::start()
 
             for (int y = -halfHeight; y < halfHeight; ++y) {
                if (wasPauseRequested())
-                    return;
+                    return true;
 
                 uint *scanLine =
                         reinterpret_cast<uint *>(image.scanLine(y + halfHeight));

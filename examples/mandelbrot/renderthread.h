@@ -79,7 +79,7 @@ public:
                 QSize resultSize, const Colormap& colormap);
 
 protected:
-    virtual void start() override;
+    virtual bool start() override;
 
 private:
     double centerX;
