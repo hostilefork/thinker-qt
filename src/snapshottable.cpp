@@ -21,7 +21,6 @@
 
 #include "thinkerqt/snapshottable.h"
 
-// SnapshottableBase
 
 SnapshottableBase::SnapshottableBase () :
     _dLock (),
@@ -30,17 +29,20 @@ SnapshottableBase::SnapshottableBase () :
 }
 
 
-void SnapshottableBase::lockForWrite (codeplace const & cp) {
+void SnapshottableBase::lockForWrite(codeplace const & cp)
+{
     _lockedForWrite.hopefullyTransition(false, true, cp);
     _dLock.lockForWrite();
 }
 
 
-void SnapshottableBase::unlock (codeplace const & cp) {
+void SnapshottableBase::unlock(codeplace const & cp)
+{
     _lockedForWrite.hopefullyTransition(true, false, cp);
     _dLock.unlock();
 }
 
 
-SnapshottableBase::~SnapshottableBase () {
+SnapshottableBase::~SnapshottableBase ()
+{
 }

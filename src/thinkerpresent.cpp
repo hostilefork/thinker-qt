@@ -23,9 +23,6 @@
 #include "thinkerqt/thinkerpresent.h"
 #include "thinkerqt/thinkermanager.h"
 
-//
-// ThinkerPresent
-//
 
 ThinkerPresentBase::ThinkerPresentBase () :
     _holder (nullptr),
@@ -54,8 +51,7 @@ ThinkerPresentBase::ThinkerPresentBase (
 
 bool ThinkerPresentBase::operator!= (
     ThinkerPresentBase const & other
-)
-    const
+) const
 {
     return _holder != other._holder;
 }
@@ -63,16 +59,15 @@ bool ThinkerPresentBase::operator!= (
 
 bool ThinkerPresentBase::operator== (
     ThinkerPresentBase const & other
-)
-    const
+) const
 {
     return _holder == other._holder;
 }
 
 
 ThinkerPresentBase & ThinkerPresentBase::operator= (
-    const ThinkerPresentBase & other
-) {
+    ThinkerPresentBase const & other
+){
     if (this != &other) {
         _holder = other._holder;
     }
@@ -80,19 +75,18 @@ ThinkerPresentBase & ThinkerPresentBase::operator= (
 }
 
 
-bool ThinkerPresentBase::hopefullyCurrentThreadIsDifferent (
+bool ThinkerPresentBase::hopefullyCurrentThreadIsDifferent(
     codeplace const & cp
-)
-    const
+) const
 {
     // The primary restriction on communicating with a thinker with a
     // Present or a PresentWatcher is that we are not doing so on
     // the same thread that the Thinker itself is running on.  We
     // can take snapshots and such from pretty much any other thread
     // in the system.
-    if (not _holder) {
+    //
+    if (not _holder)
         return true;
-    }
 
     auto runner = _holder->_mgr.maybeGetRunnerForThinker(*_holder);
     if (not runner)
@@ -102,142 +96,154 @@ bool ThinkerPresentBase::hopefullyCurrentThreadIsDifferent (
 }
 
 
-ThinkerBase & ThinkerPresentBase::getThinkerBase () {
+ThinkerBase & ThinkerPresentBase::getThinkerBase()
+{
     return *_holder;
 }
 
 
-ThinkerBase const & ThinkerPresentBase::getThinkerBase () const {
+ThinkerBase const & ThinkerPresentBase::getThinkerBase() const
+{
     return *_holder;
 }
 
 
-bool ThinkerPresentBase::isCanceled () const {
+bool ThinkerPresentBase::isCanceled() const
+{
     using State = ThinkerBase::State;
 
     hopefullyCurrentThreadIsDifferent(HERE);
 
     // If there are global objects or value members of classes before
     // manager is started...
+    //
     if (not _holder)
         return true;
 
     ThinkerBase const & thinker = getThinkerBase();
     auto runner = thinker.getManager().maybeGetRunnerForThinker(thinker);
     bool result = false;
-    if (runner == nullptr) {
+    if (runner == nullptr)
         result = (thinker._state == State::ThinkerCanceled);
-    } else {
+    else
         result = runner->isCanceled();
-    }
+
     return result;
 }
 
 
-bool ThinkerPresentBase::isFinished () const {
+bool ThinkerPresentBase::isFinished() const
+{
     using State = ThinkerBase::State;
 
     hopefullyCurrentThreadIsDifferent(HERE);
 
     if (_holder == nullptr) {
-        // This return statement was commented out.  Why?
         hopefullyNotReached(HERE);
-        return false;
+        return false;  // !!! This return statement was commented out.  Why?
     }
 
     ThinkerBase const & thinker = getThinkerBase();
     auto runner = thinker.getManager().maybeGetRunnerForThinker(thinker);
     bool result = false;
-    if (runner == nullptr) {
+    if (runner == nullptr)
         result = (thinker._state == State::ThinkerFinished);
-    } else {
+    else
         result = runner->isFinished();
-    }
+
     return result;
 }
 
 
-bool ThinkerPresentBase::isPaused () const {
+bool ThinkerPresentBase::isPaused() const
+{
     hopefullyCurrentThreadIsDifferent(HERE);
 
-    if (_holder == nullptr) {
-        // This return statement was commented out.  Why?
-        return false;
-    }
+    if (_holder == nullptr)
+        return false;  // !!! This return statement was commented out.  Why?
 
     ThinkerBase const & thinker = getThinkerBase();
     auto runner = thinker.getManager().maybeGetRunnerForThinker(thinker);
     bool result = false;
-    if (runner == nullptr) {
-        // the thinker has either finished or been canceled
-    } else {
+    if (runner != nullptr)  // nullptr means thinker finished or was canceled
         result = runner->isPaused();
-    }
+
     return result;
 }
 
 
-void ThinkerPresentBase::cancel () {
+void ThinkerPresentBase::cancel()
+{
     using State = ThinkerBase::State;
 
     hopefullyCurrentThreadIsDifferent(HERE);
 
     // Precedent set by QFuture is you can call cancel() on default constructed
     // QFuture object and it's a no-op
+    //
     if (not _holder)
         return;
 
     ThinkerBase & thinker (getThinkerBase());
     auto runner = thinker.getManager().maybeGetRunnerForThinker(thinker);
-    if (runner == nullptr) {
+    if (runner == nullptr)
         thinker._state = State::ThinkerCanceled;
-    } else {
+    else {
         // No need to enforceCancel at this point (which would cause a
         // synchronous pause of the worker thread that we'd like to avoid)
         // ...although unruly thinkers may seem to "leak" if they stall too
         // long before responding to wasPauseRequested() signals
+        //
         runner->requestCancelButAlreadyCanceledIsOkay(HERE);
     }
 }
 
 
-void ThinkerPresentBase::pause () {
+void ThinkerPresentBase::pause()
+{
     hopefullyCurrentThreadIsDifferent(HERE);
 
     // what would it mean to pause a null?  What's precedent in QFuture?
+    //
     hopefully(_holder != nullptr, HERE);
 
     ThinkerBase & thinker (getThinkerBase());
     auto runner = thinker.getManager().maybeGetRunnerForThinker(thinker);
 
     // you can't pause a thinker that's finished or canceled
+    //
     hopefully(runner != nullptr, HERE);
 
     // If there is a pause, we should probably stop update signals and queue
     // a single update at the moment of resume
+    //
     runner->requestPause(HERE);
 }
 
 
-void ThinkerPresentBase::resumeMaybeEmitDone() {
+void ThinkerPresentBase::resumeMaybeEmitDone()
+{
     hopefullyCurrentThreadIsDifferent(HERE);
 
     // what would it mean to resume a null?  What's precedent in QFuture?
+    //
     hopefully(_holder != nullptr, HERE);
 
     ThinkerBase & thinker = getThinkerBase();
     auto runner = thinker.getManager().maybeGetRunnerForThinker(thinker);
 
     // you cannot resume a thinker that has finished or canceled
+    //
     hopefully(runner != nullptr, HERE); 
 
     // If there is a resume, we should probably stop update signals and queue
     // a single update at the moment of resume
+    //
     runner->requestResume(HERE);
 }
 
 
-void ThinkerPresentBase::setPaused (bool paused) {
+void ThinkerPresentBase::setPaused(bool paused) {
     if (paused)
         resumeMaybeEmitDone();
     else
@@ -245,7 +251,7 @@ void ThinkerPresentBase::setPaused (bool paused) {
 }
 
 
-void ThinkerPresentBase::togglePaused () {
+void ThinkerPresentBase::togglePaused() {
     if (isPaused())
         resumeMaybeEmitDone();
     else
@@ -253,26 +259,26 @@ void ThinkerPresentBase::togglePaused () {
 }
 
 
-void ThinkerPresentBase::waitForFinished () {
+void ThinkerPresentBase::waitForFinished()
+{
     hopefullyCurrentThreadIsDifferent(HERE);
 
     // Following QFuture's lead in having a single waitForFinished that works
     // for both canceled as well as non-canceled results.  They seem to throw
     // an exception if the future had been paused...
+    //
     hopefully(not isPaused(), HERE);
 
     ThinkerBase & thinker (getThinkerBase());
 
     auto runner = thinker.getManager().maybeGetRunnerForThinker(thinker);
-    if (runner == nullptr) {
-        // has either finished or canceled
-    } else {
+    if (runner != nullptr)  // null means finished or canceled
         runner->waitForFinished(HERE);
-    }
 }
 
 
-SnapshotBase * ThinkerPresentBase::createSnapshotBase () const {
+SnapshotBase * ThinkerPresentBase::createSnapshotBase() const
+{
     hopefullyCurrentThreadIsDifferent(HERE);
 
     ThinkerBase const & thinker = getThinkerBase();
@@ -281,6 +287,7 @@ SnapshotBase * ThinkerPresentBase::createSnapshotBase () const {
 }
 
 
-ThinkerPresentBase::~ThinkerPresentBase () {
+ThinkerPresentBase::~ThinkerPresentBase ()
+{
     hopefully(QThread::currentThread() == _thread, HERE);
 }

@@ -23,50 +23,50 @@
 #include "thinkerqt/thinkermanager.h"
 #include "thinkerqt/thinkerrunner.h"
 
-//
-// Thinker
-//
 
 #ifdef THINKERQT_EXPLICIT_MANAGER
-ThinkerBase::ThinkerBase (ThinkerManager & mgr) :
-    QObject (),
-    _state (State::ThinkerOwnedByRunner),
-    _mgr (mgr)
-{
-    getManager().hopefullyCurrentThreadIsManager(HERE);
-}
+    ThinkerBase::ThinkerBase (ThinkerManager & mgr) :
+        QObject (),
+        _state (State::ThinkerOwnedByRunner),
+        _mgr (mgr)
+    {
+        getManager().hopefullyCurrentThreadIsManager(HERE);
+    }
 #else
-ThinkerBase::ThinkerBase () :
-    QObject (),
-    _state (State::ThinkerOwnedByRunner),
-    _mgr (ThinkerManager::getGlobalManager())
-{
-    getManager().hopefullyCurrentThreadIsManager(HERE);
-}
+    ThinkerBase::ThinkerBase () :
+        QObject (),
+        _state (State::ThinkerOwnedByRunner),
+        _mgr (ThinkerManager::getGlobalManager())
+    {
+        getManager().hopefullyCurrentThreadIsManager(HERE);
+    }
 #endif
 
 
-ThinkerManager & ThinkerBase::getManager () const {
+ThinkerManager & ThinkerBase::getManager() const
+{
     return _mgr;
 }
 
 
-void ThinkerBase::afterThreadAttach () {
+void ThinkerBase::afterThreadAttach()
+{
 }
 
 
-void ThinkerBase::beforeThreadDetach () {
+void ThinkerBase::beforeThreadDetach()
+{
 }
 
 
-void ThinkerBase::lockForWrite (codeplace const & cp) {
+void ThinkerBase::lockForWrite(codeplace const & cp) {
     hopefullyCurrentThreadIsThink(HERE);
 
     SnapshottableBase::lockForWrite(cp);
 }
 
 
-void ThinkerBase::unlock (codeplace const & cp) {
+void ThinkerBase::unlock(codeplace const & cp) {
     hopefullyCurrentThreadIsThink(HERE);
 
     getManager().unlockThinker(*this);
@@ -75,7 +75,8 @@ void ThinkerBase::unlock (codeplace const & cp) {
 }
 
 
-bool ThinkerBase::wasPauseRequested (unsigned long time) const {
+bool ThinkerBase::wasPauseRequested(unsigned long time) const
+{
     hopefullyCurrentThreadIsThink(HERE);
 
     auto runner = getManager().maybeGetRunnerForThinker(*this);
@@ -88,20 +89,21 @@ bool ThinkerBase::wasPauseRequested (unsigned long time) const {
 
 
 #ifndef Q_NO_EXCEPTIONS
-void ThinkerBase::pollForStopException (unsigned long time) const {
-    hopefullyCurrentThreadIsThink(HERE);
+    void ThinkerBase::pollForStopException(unsigned long time) const
+    {
+        hopefullyCurrentThreadIsThink(HERE);
 
-    auto runner = getManager().maybeGetRunnerForThinker(*this);
-    if (runner == nullptr) {
-        hopefully(_state == State::ThinkerFinished, HERE);
-    } else {
-        runner->pollForStopException(time);
+        auto runner = getManager().maybeGetRunnerForThinker(*this);
+        if (runner == nullptr)
+            hopefully(_state == State::ThinkerFinished, HERE);
+        else
+            runner->pollForStopException(time);
     }
-}
 #endif
 
 
-ThinkerBase::~ThinkerBase () {
+ThinkerBase::~ThinkerBase ()
+{
     getManager().hopefullyCurrentThreadIsManager(HERE);
     hopefully(getManager().maybeGetRunnerForThinker(*this) == nullptr, HERE);
 }

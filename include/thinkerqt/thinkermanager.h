@@ -49,107 +49,87 @@ class ThinkerRunnerKeepalive;
 class ThinkerManager : public QObject {
     Q_OBJECT
 
-public:
-    ThinkerManager (
-        ThinkerManager const & other
-    ) = delete;
-
+  public:
+    ThinkerManager (ThinkerManager const & other) = delete;
     ~ThinkerManager () override;
 
-
 #ifndef THINKERQT_EXPLICIT_MANAGER
-private:
+  private:
     // only one point of creation of the manager
     // all Thinkers assume it's the one you meant (mirrors QtConcurrent)
     explicit ThinkerManager ();
 
-public:
-    static ThinkerManager & getGlobalManager ();
+  public:
+    static ThinkerManager & getGlobalManager();
 #else
+  public:
     // many potential managers created
-    explicit ThinkerManager ();
+    explicit ThinkerManager();
 #endif
 
-
-public:
-    bool hopefullyThreadIsManager (
+  public:
+    bool hopefullyThreadIsManager(
         QThread const & thread,
         codeplace const & cp
     );
-
-    bool hopefullyCurrentThreadIsManager (codeplace const & cp);
-
-    bool hopefullyThreadIsNotManager (
+    bool hopefullyCurrentThreadIsManager(codeplace const & cp);
+    bool hopefullyThreadIsNotManager(
         QThread const & thread,
         codeplace const & cp
     );
-
-    bool hopefullyCurrentThreadIsNotManager (codeplace const & cp);
-
-
-    bool hopefullyThreadIsNotThinker (
+    bool hopefullyCurrentThreadIsNotManager(codeplace const & cp);
+    bool hopefullyThreadIsNotThinker(
         QThread const & thread,
         codeplace const & cp
     );
-
-    bool hopefullyCurrentThreadIsNotThinker (codeplace const & cp);
-
-    bool hopefullyThreadIsThinker (
+    bool hopefullyCurrentThreadIsNotThinker(codeplace const & cp);
+    bool hopefullyThreadIsThinker(
         QThread const & thread,
         codeplace const & cp
     );
+    bool hopefullyCurrentThreadIsThinker(codeplace const & cp);
 
-    bool hopefullyCurrentThreadIsThinker (codeplace const & cp);
+  public:
+    ThinkerBase const * getThinkerForThreadMaybeNull(QThread const & thread);
 
+    ThinkerBase & getThinkerBase(ThinkerPresentBase & present)
+      { return present.getThinkerBase(); }
 
-public:
-    ThinkerBase const * getThinkerForThreadMaybeNull (QThread const & thread);
-
-    ThinkerBase & getThinkerBase (ThinkerPresentBase & present) {
-        return present.getThinkerBase();
-    }
-
-    ThinkerBase const & getThinkerBase (ThinkerPresentBase const & present) {
-        return present.getThinkerBase();
-    }
-
+    ThinkerBase const & getThinkerBase(ThinkerPresentBase const & present)
+      { return present.getThinkerBase(); }
 
     // It used to be that Thinkers (QObjects) were created on the Manager
     // thread and then pushed to a thread of their own during the Run.  Since
     // Run now queues, that push is deferred.  We only know which thread the
     // ThreadPool will put a Thinker onto when ThreadRunner::run() happens,
     // so we make a moveThinkerToThread request from that
-signals:
-    void pushToThreadMayBeNeeded ();
+  signals:
+    void pushToThreadMayBeNeeded();
 
-private slots:
-    void doThreadPushesIfNecessary ();
+  private slots:
+    void doThreadPushesIfNecessary();
 
-
-signals:
-    void anyThinkerWritten ();
-protected:
-    void unlockThinker (ThinkerBase & thinker);
+  signals:
+    void anyThinkerWritten();
+  protected:
+    void unlockThinker(ThinkerBase & thinker);
 
     friend class ThinkerBase;
 
-
-private:
-    void createRunnerForThinker (
+  private:
+    void createRunnerForThinker(
         shared_ptr<ThinkerBase> holder,
         codeplace const & cp
     );
 
-
-public:
-    // https://github.com/hostilefork/thinker-qt/issues/5
-
+  public:  // https://github.com/hostilefork/thinker-qt/issues/5
     template <class ThinkerType>
-    typename ThinkerType::Present run (
+    typename ThinkerType::Present run(
         unique_ptr<ThinkerType> holder,
         codeplace const & cp
-    ) {
+    ){
         // It's a QObject, but we're taking ownership...
+        //
         hopefully(not holder->parent(), cp); 
 
         // We only want to run the destructor of the Thinker on the thread
@@ -158,6 +138,7 @@ public:
         // actually be the one to perform the deletion (it will happen on
         // whichever thread happens to be the last one to release a reference).
         // A custom deleter addresses this and we use Qt's "deleteLater()"
+        //
         shared_ptr<ThinkerType> shared (
             holder.release(),
             [] (ThinkerType* thinker) {
@@ -183,8 +164,9 @@ public:
     ThinkerPresentBase runBase (
         unique_ptr<ThinkerType> holder, 
         codeplace const & cp
-    ) {
+    ){
         // It's a QObject, but we're taking ownership...
+        //
         hopefully(not holder->parent(), cp); 
 
         // We only want to run the destructor of the Thinker on the thread
@@ -193,6 +175,7 @@ public:
         // actually be the one to perform the deletion (it will happen on
         // whichever thread happens to be the last one to release a reference).
         // A custom deleter addresses this and we use Qt's "deleteLater()"
+        //
         shared_ptr<ThinkerType> shared (
             holder.release(),
             [] (ThinkerType* thinker) {
@@ -212,65 +195,51 @@ public:
         return ThinkerPresentBase (shared);
     }
 
-public:
-    void ensureThinkersPaused (codeplace const & cp);
+  public:
+    void ensureThinkersPaused(codeplace const & cp);
+    void ensureThinkersResumed(codeplace const & cp);
+    void requestAndWaitForCancelButAlreadyCanceledIsOkay(
+        ThinkerBase & thinker
+    );
+    void ensureThinkerFinished(ThinkerBase & thinker);
 
-    void ensureThinkersResumed (codeplace const & cp);
-
-
-#ifndef THINKERQT_REQUIRE_CODEPLACE
+  #ifndef THINKERQT_REQUIRE_CODEPLACE
+    //
     // This will cause any asserts to indicate a failure in thinkermanager.h
     // instead of the offending line in the caller... not as good... see hoist
     // documentation http://hostilefork.com/hoist/
+    //
     template <class ThinkerType>
-    typename ThinkerType::Present run (unique_ptr<ThinkerType>&& thinker) {
-        return run(std::move(thinker), HERE);
-    }
+    typename ThinkerType::Present run(unique_ptr<ThinkerType>&& thinker)
+      { return run(std::move(thinker), HERE); }
 
-    void ensureThinkersPaused () {
-        ensureThinkersPaused(HERE);
-    }
+    void ensureThinkersPaused()
+      { ensureThinkersPaused(HERE); }
 
-    void ensureThinkersResumed () {
-        ensureThinkersResumed(HERE);
-    }
-#endif
+    void ensureThinkersResumed()
+      { ensureThinkersResumed(HERE); }
+  #endif
 
-    void requestAndWaitForCancelButAlreadyCanceledIsOkay (
-        ThinkerBase & thinker
-    );
+  public:
+    void waitForPushToThread(ThinkerRunner * runner);
+    void processThreadPushesUntil(ThinkerRunner * runner);
+    void processThreadPushes()
+      { processThreadPushesUntil(nullptr); }
 
-    void ensureThinkerFinished (ThinkerBase & thinker);
-
-
-public:
-    void waitForPushToThread (ThinkerRunner * runner);
-
-    void processThreadPushesUntil (ThinkerRunner * runner);
-
-    void processThreadPushes () {
-        processThreadPushesUntil(nullptr);
-    }
-
-
-public:
-    void addToThinkerMap (shared_ptr<ThinkerRunner> runner);
-
-    void removeFromThinkerMap (
+  public:
+    void addToThinkerMap(shared_ptr<ThinkerRunner> runner);
+    void removeFromThinkerMap(
         shared_ptr<ThinkerRunner> runner,
         bool wasCanceled
     );
-
-    void addToThreadMap (
+    void addToThreadMap(
         shared_ptr<ThinkerRunner> runner,
         QThread & thread
     );
-
-    void removeFromThreadMap (
+    void removeFromThreadMap(
         shared_ptr<ThinkerRunner> runner,
         QThread & thread
     );
-
 
     // Runners are like "tasks".  There is not necessarily a one-to-one
     // correspondence between Runners and thinkers.  So you must be
@@ -278,19 +247,18 @@ public:
     //
     // But somewhat tautologically, it is true that *if* thinker code is
     // running, it will be doing so on a thread of execution.
-private:
-    shared_ptr<ThinkerRunner> maybeGetRunnerForThinker (
+    //
+  private:
+    shared_ptr<ThinkerRunner> maybeGetRunnerForThinker(
         ThinkerBase const & thinker
     );
-
-    shared_ptr<ThinkerRunner> maybeGetRunnerForThread (
+    shared_ptr<ThinkerRunner> maybeGetRunnerForThread(
         QThread const & thread
     );
 
     friend class ThinkerPresentBase;
 
-
-private:
+  private:
     SignalThrottler _anyThinkerWrittenThrottler;
     QMutex _mapsMutex;
     QMap<QThread const *, shared_ptr<ThinkerRunner>> _threadMap;

@@ -45,104 +45,74 @@ class ThinkerPresentWatcherBase : public QObject
 {
     Q_OBJECT
 
-public:
+  public:
     ThinkerPresentWatcherBase ();
-
     ~ThinkerPresentWatcherBase () override;
 
+  signals:
+    void written();
+    void finished();
 
-signals:
-    void written ();
+  public:
+    void setThrottleTime(unsigned int milliseconds);
+    void setPresentBase(ThinkerPresentBase present);
+    ThinkerPresentBase presentBase();
 
-    void finished ();
+  public:
+    SnapshotBase const * createSnapshotBase() const
+      { return _present.createSnapshotBase(); }
 
+  public:
+    bool isCanceled() const
+      { return _present.isCanceled(); }
 
-public:
-    void setThrottleTime (unsigned int milliseconds);
+    bool isFinished() const
+      { return _present.isFinished(); }
 
-    void setPresentBase (ThinkerPresentBase present);
+    bool isPaused() const
+      { return _present.isPaused(); }
 
-    ThinkerPresentBase presentBase ();
+  public slots:
+    void cancel()
+      { _present.cancel(); }
 
+    void pause()
+      { _present.pause(); }
 
-public:
-    SnapshotBase const * createSnapshotBase () const {
-        return _present.createSnapshotBase();
-    }
+    void resumeMaybeEmitDone()
+      { _present.resumeMaybeEmitDone(); }
 
+    void setPaused(bool paused)
+      { _present.setPaused(paused); }
 
-public:
-    bool isCanceled () const {
-        return _present.isCanceled();
-    }
+    void togglePaused()
+      { _present.togglePaused(); }
 
-    bool isFinished () const {
-        return _present.isFinished();
-    }
+  public:
+    void waitForFinished()
+      { _present.waitForFinished(); }
 
-    bool isPaused () const {
-        return _present.isPaused();
-    }
+  private:
+    void doConnections();
+    void doDisconnections();
 
-
-public slots:
-    void cancel () {
-        _present.cancel();
-    }
-
-    void pause () {
-        _present.pause();
-    }
-
-    void resumeMaybeEmitDone () {
-        _present.resumeMaybeEmitDone();
-    }
-
-    void setPaused (bool paused) {
-        _present.setPaused(paused);
-    }
-
-    void togglePaused () {
-        _present.togglePaused();
-    }
-
-public:
-    void waitForFinished () {
-        _present.waitForFinished();
-    }
-
-
-private:
-    void doConnections ();
-
-    void doDisconnections ();
-
-
-protected:
+  protected:
     friend class ThinkerManager;
+    ThinkerPresentWatcherBase(ThinkerPresentBase present);
 
-    ThinkerPresentWatcherBase (ThinkerPresentBase present);
-
-
-protected:
+  protected:
     bool hopefullyCurrentThreadIsDifferent(codeplace const & cp) const {
-        if (_present == ThinkerPresentBase()) {
+        if (_present == ThinkerPresentBase())
             return true;
-        } else {
-            return _present.hopefullyCurrentThreadIsDifferent(cp);
-        }
+
+        return _present.hopefullyCurrentThreadIsDifferent(cp);
     }
 
+  protected:  // https://github.com/hostilefork/thinker-qt/issues/4
+    ThinkerBase & getThinkerBase();
+    ThinkerBase const & getThinkerBase() const;
 
-protected:
-    // https://github.com/hostilefork/thinker-qt/issues/4
-
-    ThinkerBase & getThinkerBase ();
-
-    ThinkerBase const & getThinkerBase () const;
-
-
-protected:
+  protected:
     ThinkerPresentBase _present;
     unsigned int _milliseconds;
     QSharedPointer<SignalThrottler> _notificationThrottler;

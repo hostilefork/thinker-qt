@@ -27,11 +27,11 @@ SignalThrottler::SignalThrottler (
     QObject * parent
 ) :
     QObject (parent),
-    _lastEmit (QTime::currentTime()), // easier to lie than handle null case
+    _lastEmit (QTime::currentTime()),  // easier to lie than handle null case
     _millisecondsDefault (milliseconds),
     _timer (),
-    _timerMutex (parent ? nullptr : new QMutex ())
-{
+    _timerMutex (parent ? nullptr : new QMutex ()
+){
     _timer.setSingleShot(true);
     connect(
         &_timer, &QTimer::timeout,
@@ -46,7 +46,8 @@ SignalThrottler::SignalThrottler (
 }
 
 
-void SignalThrottler::enterThreadCheck () {
+void SignalThrottler::enterThreadCheck()
+{
     if (_timerMutex)
         _timerMutex->lock();
     else
@@ -54,23 +55,27 @@ void SignalThrottler::enterThreadCheck () {
 }
 
 
-void SignalThrottler::exitThreadCheck () {
+void SignalThrottler::exitThreadCheck()
+{
     if (_timerMutex)
         _timerMutex->unlock();
 }
 
 
-void SignalThrottler::setMillisecondsDefault (int milliseconds) {
+void SignalThrottler::setMillisecondsDefault(int milliseconds)
+{
     // This lets you change the throttle but any emits (including one currently
     // being processed) will possibly use the old value
+    //
     _millisecondsDefault.fetchAndStoreRelaxed(milliseconds);
 }
 
 
-void SignalThrottler::onTimeout() {
+void SignalThrottler::onTimeout()
+{
     QTime emitTime = QTime::currentTime();
 
-    emit throttled(); // likely queued, but could be direct... :-/
+    emit throttled();  // likely queued, but could be direct... :-/
 
     enterThreadCheck();
 
@@ -87,8 +92,9 @@ void SignalThrottler::onTimeout() {
 }
 
 
-void SignalThrottler::onReschedule() {
-    bool shouldEmit = false; // don't emit inside of thread check
+void SignalThrottler::onReschedule()
+{
+    bool shouldEmit = false;  // don't emit inside of thread check
 
     enterThreadCheck();
 
@@ -99,6 +105,7 @@ void SignalThrottler::onReschedule() {
     static const int overheadMsec = 5;
 
     if (_nextEmit.isNull()) {
+        //
         // we could have gotten a reschedule, and then another reschedule
         // if the timings kept shortening, and zeroed out one.  So this
         // can happen.
@@ -107,18 +114,22 @@ void SignalThrottler::onReschedule() {
         int deltaMilliseconds = _lastEmit.msecsTo(_nextEmit);
 
         if (deltaMilliseconds < 0) {
+            //
             // forget it, the moment's passed and we already emitted...
+            //
             _nextEmit = QTime ();
         }
         else if (deltaMilliseconds < overheadMsec) {
+            //
             // don't bother resetting a timer, just emit the signal
+            //
             shouldEmit = true;
             _nextEmit = QTime ();
             _lastEmit = QTime::currentTime();
         }
         else {
             // go ahead and set (or reset) the timer.
-
+            //
             _timer.start(deltaMilliseconds);
         }
     }
@@ -130,14 +141,15 @@ void SignalThrottler::onReschedule() {
 }
 
 
-void SignalThrottler::emitThrottled () {
+void SignalThrottler::emitThrottled()
+{
     emitThrottled(_millisecondsDefault);
 }
 
 
-void SignalThrottler::emitThrottled (int milliseconds) {
-
-    bool shouldReschedule = false; // don't emit inside threadcheck
+void SignalThrottler::emitThrottled(int milliseconds)
+{
+    bool shouldReschedule = false;  // don't emit inside threadcheck
 
     enterThreadCheck();
 
@@ -151,15 +163,18 @@ void SignalThrottler::emitThrottled (int milliseconds) {
         int deltaMilliseconds = _nextEmit.msecsTo(worstCaseEmitTime);
 
         if (deltaMilliseconds < 0) {
+            //
             // The next emit will actually happen earlier than we're
             // requesting, so don't worry about it.
         }
         else if (deltaMilliseconds < overheadMsec) {
-            // same... don't bother with a new request, we won't be
-            // able to update soon enough
+            //
+            // same... don't bother with a new request, we won't be able to
+            // update soon enough
         }
         else {
             // go ahead and update the scheduling
+            //
             _nextEmit = worstCaseEmitTime;
             shouldReschedule = true;
         }
@@ -172,5 +187,6 @@ void SignalThrottler::emitThrottled (int milliseconds) {
 }
 
 
-SignalThrottler::~SignalThrottler () {
+SignalThrottler::~SignalThrottler ()
+{
 }

@@ -47,24 +47,24 @@
 template <class T>
 class Thinker : public ThinkerBase, private Snapshottable<T>
 {
-public:
+  public:
     typedef T DataType;
     typedef typename Snapshottable<DataType>::Snapshot Snapshot;
 
-public:
-    class Present : public ThinkerPresentBase
-    {
-    public:
+  public:
+    class Present : public ThinkerPresentBase {
+      public:
         Present () :
             ThinkerPresentBase ()
-        {
-        }
+          { }
 
-    protected:
+      protected:
         void verifyPresentType(codeplace const & cp) {
+            //
             // If we are generating a templated Thinker<T>::Present from a
             // base Present, ensure that the thinker held by that Present
             // is actually convertible to Thinker<T>!
+            //
             hopefully(
                 dynamic_cast<Thinker *>(&ThinkerPresentBase::getThinkerBase())
                 != nullptr,
@@ -72,38 +72,33 @@ public:
             );
         }
 
-    public:
+      public:
         Present (ThinkerPresentBase & base) :
             ThinkerPresentBase (base)
-        {
-            verifyPresentType(HERE);
-        }
+          { verifyPresentType(HERE); }
 
-    protected:
+      protected:
         Present (shared_ptr<ThinkerBase> holder) :
             ThinkerPresentBase (holder)
-        {
-            verifyPresentType(HERE);
-        }
+          { verifyPresentType(HERE); }
 
-    public:
+      public:
         Present (Present const & other) :
             ThinkerPresentBase (other)
-        {
-        }
+          { }
 
         virtual ~Present () override
-        {
-        }
+          { }
 
         friend class ThinkerManager;
 
-    public:
-        typename Thinker::Snapshot createSnapshot () const
-        {
+      public:
+        typename Thinker::Snapshot createSnapshot() const {
+            //
             // This restriction will have to be relaxed, but it may still be
             // helpful to offer some kind of virtual method hook to do thread
             // checking.
+            //
             hopefullyCurrentThreadIsDifferent(HERE);
 
             SnapshotBase * allocatedSnapshot = createSnapshotBase();
@@ -116,32 +111,27 @@ public:
         }
     };
 
-
-public:
-    class PresentWatcher : public ThinkerPresentWatcherBase
-    {
-    public:
+  public:
+    class PresentWatcher : public ThinkerPresentWatcherBase {
+      public:
         PresentWatcher (Present present) :
             ThinkerPresentWatcherBase (present)
-        {
-        }
+          { }
 
         PresentWatcher () :
             ThinkerPresentWatcherBase ()
-        {
-        }
+          { }
 
         ~PresentWatcher ()
-        {
-        }
+          { }
 
-    public:
-        const typename Thinker::Snapshot createSnapshot () const
-        {
+      public:
+        const typename Thinker::Snapshot createSnapshot() const {
             hopefullyCurrentThreadIsDifferent(HERE);
             const SnapshotBase * allocatedSnapshot = createSnapshotBase();
 
-            const Snapshot * ptr = dynamic_cast<const Snapshot *>(allocatedSnapshot);
+            const Snapshot * ptr
+                = dynamic_cast<const Snapshot *>(allocatedSnapshot);
             hopefully(ptr != nullptr, HERE);
 
             const Snapshot result = *ptr;
@@ -149,112 +139,89 @@ public:
             return result;
         }
 
-        void setPresent (Present present)
-        {
-            setPresentBase(present);
-        }
+        void setPresent(Present present)
+          { setPresentBase(present); }
 
-        Present present ()
-        {
-            return Present (presentBase());
-        }
+        Present present()
+          { return Present (presentBase()); }
     };
 
-
-public:
-#ifdef THINKERQT_EXPLICIT_MANAGER
-
+  public:
+  #ifdef THINKERQT_EXPLICIT_MANAGER
     Thinker (ThinkerManager & mgr) :
         ThinkerBase (mgr),
         Snapshottable<DataType> ()
-    {
-    }
+      { }
 
     template <class... Args>
     Thinker (ThinkerManager & mgr, Args &&... args) :
         ThinkerBase (mgr),
         Snapshottable<DataType> (std::forward<Args>(args)...)
-    {
-    }
-
-#else
-
+      { }
+  #else
     Thinker () :
         ThinkerBase (),
         Snapshottable<DataType> ()
-    {
-    }
+      { }
 
     template <class... Args>
     Thinker (Args &&... args) :
         ThinkerBase (),
         Snapshottable<DataType> (std::forward<Args>(args)...)
-    {
-    }
-
-#endif
+      { }
+  #endif
 
     virtual ~Thinker () override
-    {
-    }
+      { }
 
 
-private:
+  private:
+    //
     // You call makeSnapshot from the ThinkerPresent and not from the
     // thinker itself.
-
+    //
     friend class Present;
+
     Snapshot makeSnapshot ()
-    {
-        return Snapshottable<DataType>::makeSnapshot();
-    }
+      { return Snapshottable<DataType>::makeSnapshot(); }
 
-
-public:
     // These overrides are here because we are inheriting privately
     // from Snapshottable, but want readable() and writable() to
     // be public.
+    //
+  public:
+    const T & readable() const
+      { return Snapshottable<DataType>::readable(); }
 
-    const T & readable () const
-    {
-        return Snapshottable<DataType>::readable();
-    }
+    T & writable(codeplace const & cp)
+      { return Snapshottable<DataType>::writable(cp); }
 
-    T & writable (codeplace const & cp)
-    {
-        return Snapshottable<DataType>::writable(cp);
-    }
-
-#ifndef THINKERQT_REQUIRE_CODEPLACE
+  #ifndef THINKERQT_REQUIRE_CODEPLACE
     T & writable()
-    {
-        return writable(HERE);
-    }
-#endif
+      { return writable(HERE); }
+  #endif
 };
 
 
-
-//
-// If for convenience you just want one on-demand manager, this provides an
-// analogue to QtConcurrent::run just from including thinker.h - otherwise
-// somewhere in your program you will have to include thinkermanager.h
-// and instantiate it yourself
-//
-
 #ifndef THINKERQT_EXPLICIT_MANAGER
+    //
+    // If for convenience you just want one on-demand manager, this provides an
+    // analogue to QtConcurrent::run just from including thinker.h - otherwise
+    // somewhere in your program you will have to include thinkermanager.h
+    // and instantiate it yourself
 
-#include "thinkermanager.h"
+    #include "thinkermanager.h"
 
-namespace ThinkerQt {
-
-    template <class ThinkerType, class... Args>
-    typename ThinkerType::Present run (Args&&... args) {
-        return ThinkerManager::getGlobalManager().run(unique_ptr<ThinkerType>(
-            new ThinkerType (std::forward<Args>(args)...))
-        );
+    namespace ThinkerQt {
+        template <class ThinkerType, class... Args>
+        typename ThinkerType::Present run(Args&&... args) {
+            return ThinkerManager::getGlobalManager().run(
+                unique_ptr<ThinkerType>(
+                    new ThinkerType (std::forward<Args>(args)...)
+                )
+            );
+        }
     }
-}
 #endif
 
 #endif

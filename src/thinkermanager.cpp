@@ -26,17 +26,15 @@
 #include "thinkerqt/thinkermanager.h"
 
 
-//
-// ThinkerManager
-//
-
 #ifndef THINKERQT_EXPLICIT_MANAGER
-ThinkerManager & ThinkerManager::getGlobalManager () {
-    // This may depend on C++11 if you call this from more than one thread
-    // http://stackoverflow.com/questions/9608257/
-    static ThinkerManager globalInstance;
-    return globalInstance;
-}
+    ThinkerManager & ThinkerManager::getGlobalManager () {
+        //
+        // This may depend on C++11 if you call this from more than one thread
+        // http://stackoverflow.com/questions/9608257/
+        //
+        static ThinkerManager globalInstance;
+        return globalInstance;
+    }
 #endif
 
 
@@ -45,6 +43,7 @@ ThinkerManager::ThinkerManager () :
 
     // Hardcoded value; should probably be configurable.  Optional parameter
     // to the constructor?
+    //
     _anyThinkerWrittenThrottler (400),
 
     // We create this Mutex recursively because the checks for whether a
@@ -53,6 +52,7 @@ ThinkerManager::ThinkerManager () :
     // mutex.  It may be desirable to have those assertions use a different
     // (and possibly faster) method for the test so we wouldn't have to
     // make this allow nested locks.
+    //
     _mapsMutex (QMutex::Recursive)
 {
     hopefullyCurrentThreadIsManager(HERE);
@@ -71,71 +71,70 @@ ThinkerManager::ThinkerManager () :
 }
 
 
-bool ThinkerManager::hopefullyThreadIsManager (
+bool ThinkerManager::hopefullyThreadIsManager(
     const QThread & thread,
     codeplace const & cp
-) {
+){
     return hopefully(&thread == this->thread(), cp);
 }
 
 
-bool ThinkerManager::hopefullyCurrentThreadIsManager (
+bool ThinkerManager::hopefullyCurrentThreadIsManager(
     codeplace const & cp
-) {
+){
     return hopefullyThreadIsManager(*QThread::currentThread(), cp);
 }
 
 
-bool ThinkerManager::hopefullyThreadIsNotManager (
+bool ThinkerManager::hopefullyThreadIsNotManager(
     const QThread & thread,
     codeplace const & cp
-) {
+){
     return hopefully(&thread != this->thread(), cp);
 }
 
 
-bool ThinkerManager::hopefullyCurrentThreadIsNotManager (
+bool ThinkerManager::hopefullyCurrentThreadIsNotManager(
     codeplace const & cp
-) {
+){
     return hopefullyThreadIsNotManager(*QThread::currentThread(), cp);
 }
 
 
-
-bool ThinkerManager::hopefullyThreadIsNotThinker (
+bool ThinkerManager::hopefullyThreadIsNotThinker(
     const QThread & thread,
     codeplace const & cp
-) {
+){
     return hopefully(maybeGetRunnerForThread(thread) == nullptr, cp);
 }
 
 
-bool ThinkerManager::hopefullyCurrentThreadIsNotThinker (
+bool ThinkerManager::hopefullyCurrentThreadIsNotThinker(
     codeplace const & cp
-) {
+){
     return hopefullyThreadIsNotThinker(*QThread::currentThread(), cp);
 }
 
 
-bool ThinkerManager::hopefullyThreadIsThinker (
+bool ThinkerManager::hopefullyThreadIsThinker(
     const QThread & thread,
     codeplace const & cp
-) {
+){
     return hopefully(maybeGetRunnerForThread(thread) != nullptr, cp);
 }
 
 
-bool ThinkerManager::hopefullyCurrentThreadIsThinker (
+bool ThinkerManager::hopefullyCurrentThreadIsThinker(
     codeplace const & cp
-) {
+){
     return hopefullyThreadIsThinker(*QThread::currentThread(), cp);
 }
 
 
-void ThinkerManager::createRunnerForThinker (
+void ThinkerManager::createRunnerForThinker(
     shared_ptr<ThinkerBase> holder,
     codeplace const & cp
-) {
+){
     hopefullyCurrentThreadIsManager(cp);
     hopefully(holder != nullptr, cp);
 
@@ -150,6 +149,7 @@ void ThinkerManager::createRunnerForThinker (
     // destruction.  Also, when the thread emits the finished signal, we clean
     // it up using deleteLater (it is freed by the event loop when all events
     // have been processed)
+    //
     proxy->setAutoDelete(true);
 
     // QtConcurrent defines one global thread pool instance.  But maybe I'll
@@ -158,14 +158,17 @@ void ThinkerManager::createRunnerForThinker (
 
     // Queue this runnable thing to the thread pool.  It may take a while
     // before a thread gets allocated to it.
+    //
     static_cast<void>(QThreadPool::globalInstance()->start(proxy));
 }
 
 
-void ThinkerManager::ensureThinkersPaused (codeplace const & cp) {
+void ThinkerManager::ensureThinkersPaused(codeplace const & cp)
+{
     hopefullyCurrentThreadIsNotThinker(HERE);
 
     // we have to make a copy of the map
+    //
     QMutexLocker lock (&_mapsMutex);
     auto mapCopy = _thinkerMap;
     lock.unlock();
@@ -188,7 +191,8 @@ void ThinkerManager::ensureThinkersPaused (codeplace const & cp) {
 }
 
 
-void ThinkerManager::ensureThinkersResumed (codeplace const & cp) {
+void ThinkerManager::ensureThinkersResumed(codeplace const & cp)
+{
     hopefullyCurrentThreadIsNotThinker(HERE);
 
     QMutexLocker lock (&_mapsMutex);
@@ -202,9 +206,9 @@ void ThinkerManager::ensureThinkersResumed (codeplace const & cp) {
 }
 
 
-shared_ptr<ThinkerRunner> ThinkerManager::maybeGetRunnerForThread (
+shared_ptr<ThinkerRunner> ThinkerManager::maybeGetRunnerForThread(
     const QThread & thread
-) {
+){
     QMutexLocker lock (&_mapsMutex);
 
     shared_ptr<ThinkerRunner> result = _threadMap.value(&thread, nullptr);
@@ -213,9 +217,9 @@ shared_ptr<ThinkerRunner> ThinkerManager::maybeGetRunnerForThread (
 }
 
 
-shared_ptr<ThinkerRunner> ThinkerManager::maybeGetRunnerForThinker (
+shared_ptr<ThinkerRunner> ThinkerManager::maybeGetRunnerForThinker(
     ThinkerBase const & thinker
-) {
+){
     using State = ThinkerBase::State;
 
     QMutexLocker lock (&_mapsMutex);
@@ -233,9 +237,9 @@ shared_ptr<ThinkerRunner> ThinkerManager::maybeGetRunnerForThinker (
 }
 
 
-const ThinkerBase * ThinkerManager::getThinkerForThreadMaybeNull (
+const ThinkerBase * ThinkerManager::getThinkerForThreadMaybeNull(
     const QThread & thread
-) {
+){
     shared_ptr<ThinkerRunner> runner = maybeGetRunnerForThread(thread);
     if (not runner)
         return nullptr;
@@ -244,16 +248,17 @@ const ThinkerBase * ThinkerManager::getThinkerForThreadMaybeNull (
 }
 
 
-void ThinkerManager::requestAndWaitForCancelButAlreadyCanceledIsOkay (
+void ThinkerManager::requestAndWaitForCancelButAlreadyCanceledIsOkay(
     ThinkerBase & thinker
-) {
+){
     using State = ThinkerBase::State;
 
     shared_ptr<ThinkerRunner> runner = maybeGetRunnerForThinker(thinker);
-    if (not runner) {
+    if (not runner)
         thinker._state = State::ThinkerCanceled;
-    } else {
+    else {
         // thread should be paused or finished... or possibly aborted
+        //
         runner->requestCancelButAlreadyCanceledIsOkay(HERE);
         runner->waitForFinished(HERE);
     }
@@ -261,19 +266,23 @@ void ThinkerManager::requestAndWaitForCancelButAlreadyCanceledIsOkay (
 }
 
 
-void ThinkerManager::ensureThinkerFinished (ThinkerBase & thinker) {
+void ThinkerManager::ensureThinkerFinished(ThinkerBase & thinker)
+{
     using State = ThinkerBase::State;
 
     hopefullyCurrentThreadIsNotThinker(HERE);
 
     shared_ptr<ThinkerRunner> runner = maybeGetRunnerForThinker(thinker);
     if (runner != nullptr) {
+        //
         // can't finish if it's aborted or invalid!
+        //
         hopefully(not runner->isCanceled(), HERE); 
 
-        // we need to watch the state changes and ensure that
-        // it completes... note user cancellation would mean that it
-        // would not so we have to allow for that case!
+        // we need to watch the state changes and ensure that it completes...
+        // note user cancellation would mean that it would not so we have to
+        // allow for that case!
+        //
         if (runner->isPaused()) {
             runner->requestResume(HERE);
             runner->waitForResume(HERE);
@@ -288,7 +297,8 @@ void ThinkerManager::ensureThinkerFinished (ThinkerBase & thinker) {
 }
 
 
-void ThinkerManager::unlockThinker (ThinkerBase & thinker) {
+void ThinkerManager::unlockThinker(ThinkerBase & thinker)
+{
     // do throttled emit to all the ThinkerPresentWatchers
     {
         QReadLocker lock (&thinker._watchersLock);
@@ -300,11 +310,13 @@ void ThinkerManager::unlockThinker (ThinkerBase & thinker) {
 
     // there is a notification throttler for all thinkers.  Review: should it
     // be possible to have a separate notification for groups?
+    //
     _anyThinkerWrittenThrottler.emitThrottled();
 }
 
 
-void ThinkerManager::addToThinkerMap (shared_ptr<ThinkerRunner> runner) {
+void ThinkerManager::addToThinkerMap(shared_ptr<ThinkerRunner> runner)
+{
     // We use a mutex to guard the addition and removal of Runners to the maps
     // If a Runner exists, then we look to its state information for
     // cancellation--not the Thinker.
@@ -317,10 +329,10 @@ void ThinkerManager::addToThinkerMap (shared_ptr<ThinkerRunner> runner) {
 }
 
 
-void ThinkerManager::removeFromThinkerMap (
+void ThinkerManager::removeFromThinkerMap(
     shared_ptr<ThinkerRunner> runner,
     bool wasCanceled
-) {
+){
     using State = ThinkerBase::State;
 
     QMutexLocker lock (&_mapsMutex);
@@ -335,10 +347,10 @@ void ThinkerManager::removeFromThinkerMap (
 }
 
 
-void ThinkerManager::addToThreadMap (
+void ThinkerManager::addToThreadMap(
     shared_ptr<ThinkerRunner> runner,
     QThread & thread
-) {
+){
     QMutexLocker lock (&_mapsMutex);
 
     hopefully(not _threadMap.contains(&thread), HERE);
@@ -346,10 +358,10 @@ void ThinkerManager::addToThreadMap (
 }
 
 
-void ThinkerManager::removeFromThreadMap (
+void ThinkerManager::removeFromThreadMap(
     shared_ptr<ThinkerRunner> runner,
     QThread & thread
-) {
+){
     Q_UNUSED(runner)
 
     QMutexLocker lock (&_mapsMutex);
@@ -358,7 +370,8 @@ void ThinkerManager::removeFromThreadMap (
 }
 
 
-void ThinkerManager::waitForPushToThread (ThinkerRunner * runner) {
+void ThinkerManager::waitForPushToThread(ThinkerRunner * runner)
+{
     hopefullyCurrentThreadIsThinker(HERE);
 
     QMutexLocker lock (&_pushThreadMutex);
@@ -370,7 +383,8 @@ void ThinkerManager::waitForPushToThread (ThinkerRunner * runner) {
 }
 
 
-void ThinkerManager::processThreadPushesUntil (ThinkerRunner * runner) {
+void ThinkerManager::processThreadPushesUntil(ThinkerRunner * runner)
+{
     hopefullyCurrentThreadIsNotThinker(HERE);
 
     QMutexLocker lock (&_pushThreadMutex);
@@ -390,16 +404,19 @@ void ThinkerManager::processThreadPushesUntil (ThinkerRunner * runner) {
 }
 
 
-void ThinkerManager::doThreadPushesIfNecessary () {
+void ThinkerManager::doThreadPushesIfNecessary()
+{
     processThreadPushesUntil(nullptr);
 }
 
 
-ThinkerManager::~ThinkerManager () {
+ThinkerManager::~ThinkerManager ()
+{
     hopefullyCurrentThreadIsManager(HERE);
 
     // We catch you with an assertion if you do not make sure all your
     // Presents have been either canceled or completed
+    //
     bool anyRunners = false;
 
     {

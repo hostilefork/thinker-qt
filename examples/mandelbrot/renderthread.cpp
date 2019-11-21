@@ -38,9 +38,11 @@
 
 #include "renderthread.h"
 
-RenderThinker::RenderThinker(double centerX, double centerY, double scaleFactor,
-                QSize resultSize, const Colormap& colormap)
-    : centerX (centerX),
+RenderThinker::RenderThinker(
+    double centerX, double centerY, double scaleFactor,
+    QSize resultSize, const Colormap& colormap
+) :
+    centerX (centerX),
     centerY (centerY),
     scaleFactor (scaleFactor),
     resultSize (resultSize),
@@ -50,63 +52,64 @@ RenderThinker::RenderThinker(double centerX, double centerY, double scaleFactor,
 
 bool RenderThinker::start()
 {
-        int halfWidth = resultSize.width() / 2;
-        int halfHeight = resultSize.height() / 2;
-        QImage image(resultSize, QImage::Format_RGB32);
+    int halfWidth = resultSize.width() / 2;
+    int halfHeight = resultSize.height() / 2;
+    QImage image(resultSize, QImage::Format_RGB32);
 
-        const int NumPasses = 8;
-        int pass = 0;
-        while (pass < NumPasses) {
-            const int MaxIterations = (1 << (2 * pass + 6)) + 32;
-            const int Limit = 4;
-            bool allBlack = true;
+    const int NumPasses = 8;
+    int pass = 0;
+    while (pass < NumPasses) {
+        const int MaxIterations = (1 << (2 * pass + 6)) + 32;
+        const int Limit = 4;
+        bool allBlack = true;
 
-            for (int y = -halfHeight; y < halfHeight; ++y) {
-               if (wasPauseRequested())
-                    return true;
+        for (int y = -halfHeight; y < halfHeight; ++y) {
+           if (wasPauseRequested())
+                return true;
 
-                uint *scanLine =
-                        reinterpret_cast<uint *>(image.scanLine(y + halfHeight));
-                double ay = centerY + (y * scaleFactor);
+            uint *scanLine =
+                reinterpret_cast<uint *>(image.scanLine(y + halfHeight));
 
-                for (int x = -halfWidth; x < halfWidth; ++x) {
-                    double ax = centerX + (x * scaleFactor);
-                    double a1 = ax;
-                    double b1 = ay;
-                    int numIterations = 0;
+            double ay = centerY + (y * scaleFactor);
 
-                    do {
-                        ++numIterations;
-                        double a2 = (a1 * a1) - (b1 * b1) + ax;
-                        double b2 = (2 * a1 * b1) + ay;
-                        if ((a2 * a2) + (b2 * b2) > Limit)
-                            break;
+            for (int x = -halfWidth; x < halfWidth; ++x) {
+                double ax = centerX + (x * scaleFactor);
+                double a1 = ax;
+                double b1 = ay;
+                int numIterations = 0;
 
-                        ++numIterations;
-                        a1 = (a2 * a2) - (b2 * b2) + ax;
-                        b1 = (2 * a2 * b2) + ay;
-                        if ((a1 * a1) + (b1 * b1) > Limit)
-                            break;
-                    } while (numIterations < MaxIterations);
+                do {
+                    ++numIterations;
+                    double a2 = (a1 * a1) - (b1 * b1) + ax;
+                    double b2 = (2 * a1 * b1) + ay;
+                    if ((a2 * a2) + (b2 * b2) > Limit)
+                        break;
 
-                    if (numIterations < MaxIterations) {
-                        *scanLine++ = colormap[numIterations % ColormapSize];
-                        allBlack = false;
-                    } else {
-                        *scanLine++ = qRgb(0, 0, 0);
-                    }
+                    ++numIterations;
+                    a1 = (a2 * a2) - (b2 * b2) + ax;
+                    b1 = (2 * a2 * b2) + ay;
+                    if ((a1 * a1) + (b1 * b1) > Limit)
+                        break;
+                } while (numIterations < MaxIterations);
+
+                if (numIterations < MaxIterations) {
+                    *scanLine++ = colormap[numIterations % ColormapSize];
+                    allBlack = false;
+                } else {
+                    *scanLine++ = qRgb(0, 0, 0);
                 }
             }
-
-            if (allBlack && pass == 0) {
-                pass = 4;
-            } else {
-                lockForWrite();
-                writable().image = image;
-                writable().scaleFactor = scaleFactor;
-                unlock();
-                ++pass;
-            }
         }
-        return true;
+
+        if (allBlack && pass == 0) {
+            pass = 4;
+        } else {
+            lockForWrite();
+            writable().image = image;
+            writable().scaleFactor = scaleFactor;
+            unlock();
+            ++pass;
+        }
+    }
+    return true;
 }

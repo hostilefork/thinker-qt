@@ -55,61 +55,55 @@ class SignalThrottler : public QObject
 {
     Q_OBJECT
 
-private:
+  private:
+    //
     // There is some overhead associated with _timers, signals, etc.
     // Don't set _timer if time we'd wait to signal is less than that value.
     // TODO: get this number from timing data, perhaps gathered at startup?
-
+    //
     static const int overheadMsec = 5;
 
-public:
+  public:
     SignalThrottler (int milliseconds = 0, QObject* parent = nullptr);
-
     ~SignalThrottler () override;
 
+  public:
+    void setMillisecondsDefault(int milliseconds);
+    void emitThrottled(int milliseconds);
 
-public:
-    void setMillisecondsDefault (int milliseconds);
-
-    void emitThrottled (int milliseconds);
-
-
-public slots:
+  public slots:
+    //
     // This function is the slot you call or connect an unthrottled signal
     // to.  It sort of defeats the point a bit to connect an unthrottled
     // signal here which happens frequently rather than call it as a
     // function because you'll still pay for the event queue processing
-    void emitThrottled ();
+    //
+    void emitThrottled();
 
+  signals:
+    void throttled();
+    void rescheduled();
 
-signals:
-    void throttled ();
-    void rescheduled ();
+  private slots:
+    void onTimeout();
+    void onReschedule();
 
-
-private slots:
-    void onTimeout ();
-    void onReschedule ();
-
-
-private:
     // A signal throttler is not thread safe if you allocate the object with
     // a parent.  It assumes in that case that all emitThrottled calls will
     // be done from the parent QObject::thread(), and checks this with
     // an assertion.  If there is no parent then a mutex is allocated and
     // calls to emitThrottled will be thread safe.
+    //
+  private:
+    void enterThreadCheck();
+    void exitThreadCheck();
 
-    void enterThreadCheck ();
-
-    void exitThreadCheck ();
-
-
-private:
-    QTime _lastEmit; // when was the last emit?  (null if never)
-    QTime _nextEmit; // when is the next emit scheduled?  (null if none)
+  private:
+    QTime _lastEmit;  // when was the last emit?  (null if never)
+    QTime _nextEmit;  // when is the next emit scheduled?  (null if none)
     QAtomicInt _millisecondsDefault;
     QTimer _timer;
-    QSharedPointer<QMutex> _timerMutex; // only if no parent given...
+    QSharedPointer<QMutex> _timerMutex;  // only if no parent given...
 };
 
 #endif
