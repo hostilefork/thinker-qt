@@ -38,11 +38,11 @@
 
 #include "mandelbrotwidget.h"
 
-const double DefaultCenterX = -0.637011f;
-const double DefaultCenterY = -0.0395159f;
-const double DefaultScale = 0.00403897f;
+const double DefaultCenterX = -0.637011;
+const double DefaultCenterY = -0.0395159;
+const double DefaultScale = 0.00403897;
 
-const double ZoomInFactor = 0.8f;
+const double ZoomInFactor = 0.8;
 const double ZoomOutFactor = 1 / ZoomInFactor;
 const int ScrollStep = 20;
 
@@ -163,7 +163,7 @@ void MandelbrotWidget::keyPressEvent(QKeyEvent *event)
 void MandelbrotWidget::wheelEvent(QWheelEvent *event)
 {
     int numDegrees = event->delta() / 8;
-    double numSteps = numDegrees / 15.0f;
+    double numSteps = numDegrees / 15.0;
     zoom(pow(ZoomInFactor, numSteps));
 }
 
