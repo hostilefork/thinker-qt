@@ -38,8 +38,8 @@ ThinkerBase::ThinkerBase (ThinkerManager & mgr) :
 #else
 ThinkerBase::ThinkerBase () :
     QObject (),
-    state (ThinkerOwnedByRunner),
-    mgr (ThinkerManager::getGlobalManager())
+    _state (State::ThinkerOwnedByRunner),
+    _mgr (ThinkerManager::getGlobalManager())
 {
     getManager().hopefullyCurrentThreadIsManager(HERE);
 }
