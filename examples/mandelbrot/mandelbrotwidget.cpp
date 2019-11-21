@@ -75,6 +75,11 @@ MandelbrotWidget::~MandelbrotWidget()
 void MandelbrotWidget::resetThinker(double centerX, double centerY,
                 double scaleFactor, QSize resultSize)
 {
+    Q_UNUSED(centerX)
+    Q_UNUSED(centerY)
+    Q_UNUSED(scaleFactor)
+    Q_UNUSED(resultSize)
+
     watcher.cancel();
 
     watcher.setPresent(ThinkerQt::run<RenderThinker>(centerX, centerY,

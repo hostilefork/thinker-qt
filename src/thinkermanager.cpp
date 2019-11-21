@@ -350,7 +350,7 @@ void ThinkerManager::removeFromThreadMap (
     shared_ptr<ThinkerRunner> runner,
     QThread & thread
 ) {
-    Q_UNUSED(runner);
+    Q_UNUSED(runner)
 
     QMutexLocker lock (&_mapsMutex);
 
