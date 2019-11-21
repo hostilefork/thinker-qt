@@ -37,42 +37,19 @@ inline QTextStream & operator<< (
 ) {
     using State = ThinkerRunner::State;
 
-    o << "ThinkerRunner::State::";
-    switch (state) {
-    case State::Queued:
-        o << "Queued";
-        break;
-    case State::QueuedButPaused:
-        o << "QueuedButPaused";
-        break;
-    case State::ThreadPush:
-        o << "ThreadPush";
-        break;
-    case State::Thinking:
-        o << "Thinking";
-        break;
-    case State::Pausing:
-        o << "Pausing";
-        break;
-    case State::Paused:
-        o << "Paused";
-        break;
-    case State::Resuming:
-        o << "Resuming";
-        break;
-    case State::Finished:
-        o << "Finished";
-        break;
-    case State::Canceling:
-        o << "Canceling";
-        break;
-    case State::Canceled:
-        o << "Canceled";
-        break;
-    default:
-        hopefullyNotReached(HERE);
-    }
-    return o;
+    QMap<State, const char*> m = {
+        {State::Queued, "Queued"},
+        {State::QueuedButPaused, "QueuedButPaused"},
+        {State::ThreadPush, "ThreadPush"},
+        {State::Thinking, "Thinking"},
+        {State::Pausing, "Pausing"},
+        {State::Paused, "Paused"},
+        {State::Resuming, "Resuming"},
+        {State::Finished, "Finished"},
+        {State::Canceling, "Canceling"},
+        {State::Canceled, "Canceled"}
+    };
+    return o << "ThinkerRunner::State::" << m[state];
 }
 
 
