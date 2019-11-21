@@ -30,7 +30,7 @@
 // ThinkerManager
 //
 
-#if not THINKERQT_EXPLICIT_MANAGER
+#ifndef THINKERQT_EXPLICIT_MANAGER
 ThinkerManager & ThinkerManager::getGlobalManager () {
     // This may depend on C++11 if you call this from more than one thread
     // http://stackoverflow.com/questions/9608257/

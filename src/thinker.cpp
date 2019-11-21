@@ -27,7 +27,7 @@
 // Thinker
 //
 
-#if THINKERQT_EXPLICIT_MANAGER
+#ifdef THINKERQT_EXPLICIT_MANAGER
 ThinkerBase::ThinkerBase (ThinkerManager & mgr) :
     QObject (),
     _state (State::ThinkerOwnedByRunner),

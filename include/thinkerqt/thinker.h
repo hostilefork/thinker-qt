@@ -70,7 +70,7 @@ private:
 
 
 public:
-#if THINKERQT_EXPLICIT_MANAGER
+#ifdef THINKERQT_EXPLICIT_MANAGER
     ThinkerBase (ThinkerManager & mgr);
 #else
     ThinkerBase ();
@@ -319,7 +319,7 @@ public:
 
 
 public:
-#if THINKERQT_EXPLICIT_MANAGER
+#ifdef THINKERQT_EXPLICIT_MANAGER
 
     Thinker (ThinkerManager & mgr) :
         ThinkerBase (mgr),
@@ -382,7 +382,7 @@ public:
         return Snapshottable<DataType>::writable(cp);
     }
 
-#if not THINKERQT_REQUIRE_CODEPLACE
+#ifndef THINKERQT_REQUIRE_CODEPLACE
     T & writable()
     {
         return writable(HERE);
@@ -399,7 +399,7 @@ public:
 // and instantiate it yourself
 //
 
-#if not THINKERQT_EXPLICIT_MANAGER
+#ifndef THINKERQT_EXPLICIT_MANAGER
 
 #include "thinkermanager.h"
 

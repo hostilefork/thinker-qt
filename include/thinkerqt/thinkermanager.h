@@ -57,7 +57,7 @@ public:
     ~ThinkerManager () override;
 
 
-#if not THINKERQT_EXPLICIT_MANAGER
+#ifndef THINKERQT_EXPLICIT_MANAGER
 private:
     // only one point of creation of the manager
     // all Thinkers assume it's the one you meant (mirrors QtConcurrent)
@@ -217,7 +217,8 @@ public:
 
     void ensureThinkersResumed (codeplace const & cp);
 
-#if not THINKERQT_REQUIRE_CODEPLACE
+
+#ifndef THINKERQT_REQUIRE_CODEPLACE
     // This will cause any asserts to indicate a failure in thinkermanager.h
     // instead of the offending line in the caller... not as good... see hoist
     // documentation http://hostilefork.com/hoist/
