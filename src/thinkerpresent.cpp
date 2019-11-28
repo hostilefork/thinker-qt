@@ -92,7 +92,7 @@ bool ThinkerPresentBase::hopefullyCurrentThreadIsDifferent(
     if (not runner)
         return true;
 
-    return hopefully(QThread::currentThread() != runner->thread(), cp);
+    return runner->hopefullyCurrentThreadIsNotThinker(cp);
 }
 
 

@@ -353,6 +353,8 @@ void ThinkerManager::addToThreadMap(
 ){
     QMutexLocker lock (&_mapsMutex);
 
+    hopefully(&thread != this->thread(), HERE);
+
     hopefully(not _threadMap.contains(&thread), HERE);
     _threadMap.insert(&thread, runner);
 }
