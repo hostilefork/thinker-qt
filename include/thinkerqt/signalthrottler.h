@@ -57,14 +57,17 @@ class SignalThrottler : public QObject
 
   private:
     //
-    // There is some overhead associated with _timers, signals, etc.
+    // There is some overhead associated with timers, signals, etc.
     // Don't set _timer if time we'd wait to signal is less than that value.
     // TODO: get this number from timing data, perhaps gathered at startup?
     //
     static const int overheadMsec = 5;
 
   public:
-    SignalThrottler (int milliseconds = 0, QObject* parent = nullptr);
+    SignalThrottler (
+        int milliseconds = 0,
+        QObject * parent = nullptr  // must have event loop for QTimer to work
+    );
     ~SignalThrottler () override;
 
   public:
@@ -82,28 +85,27 @@ class SignalThrottler : public QObject
 
   signals:
     void throttled();
-    void rescheduled();
 
   private slots:
     void onTimeout();
-    void onReschedule();
 
-    // A signal throttler is not thread safe if you allocate the object with
-    // a parent.  It assumes in that case that all emitThrottled calls will
-    // be done from the parent QObject::thread(), and checks this with
-    // an assertion.  If there is no parent then a mutex is allocated and
-    // calls to emitThrottled will be thread safe.
+    // Changes between Qt4 and Qt5 got more stringent about the idea that a
+    // QTimer::start() gets called from the thread the timer lives on.  With
+    // Thinker threads running in a tight loop and being the source of the
+    // desire to emit updates, that means start() has to be called through a
+    // signal which is proxied, and uses a QueuedConnection (plus the target
+    // of the queued connection must have an event loop, e.g. SignalThrottler
+    // itself must have thread affinity to something like the GUI thread).
     //
-  private:
-    void enterThreadCheck();
-    void exitThreadCheck();
+  signals:
+    void startTimer(int msec);  // QueuedConnection for calling _timer::start()
 
   private:
     QTime _lastEmit;  // when was the last emit?  (null if never)
     QTime _nextEmit;  // when is the next emit scheduled?  (null if none)
     QAtomicInt _millisecondsDefault;
     QTimer _timer;
-    QSharedPointer<QMutex> _timerMutex;  // only if no parent given...
+    QMutex _mutex;  // in case emitThrottled() and onTimeout() run at once
 };
 
 #endif

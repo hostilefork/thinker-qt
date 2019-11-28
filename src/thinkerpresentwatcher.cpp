@@ -25,7 +25,7 @@
 
 ThinkerPresentWatcherBase::ThinkerPresentWatcherBase () :
     _present (),
-    _milliseconds (200),
+    _milliseconds (200),  // !!! is 200 msec a good default?
     _notificationThrottler ()
 {
     hopefullyCurrentThreadIsDifferent(HERE);
@@ -36,12 +36,7 @@ ThinkerPresentWatcherBase::ThinkerPresentWatcherBase (
     ThinkerPresentBase present
 ) :
     _present (present),
-    //
-    // we parent the SignalThrottler to the thinker so that they'll have the
-    // same thread affinity after the reparenting.  But is 200 milliseconds
-    // a good default?
-    //
-    _milliseconds (200),
+    _milliseconds (200),  // !!! is 200 msec a good default?
     _notificationThrottler ()
 {
     hopefullyCurrentThreadIsDifferent(HERE);
@@ -54,8 +49,28 @@ void ThinkerPresentWatcherBase::doConnections()
     if (ThinkerPresentBase() == _present)
         hopefully(not _notificationThrottler, HERE);
     else {
+        // !!! The reason the notification throttler is created dynamically
+        // each time a thread is assigned from the thread pool was historically
+        // because that parent was assumed as the only thread that could call
+        // the `emitThrottled()` function.  This was to try and avoid needing
+        // a mutex lock when doing updates in the thinkers.
+        //
+        // However, changes in timers between Qt4 and Qt5 led to problems with
+        // making the signal throttler be parented to something with a thread
+        // affinity that didn't have an event loop.  Hence the signal throttler
+        // is parented to the ThinkerPresent, making this dynamism not needed
+        // for the throttler (though since Thinkers are getting their thread
+        // affinity pushed around, still needed for any of their connections)
+        //
+        // This should be reviewed, and `_present.getThinkerBase().thread()`
+        // might something passed into the throttler each time...maybe just
+        // for debug reasons.  We preserve the dynamism for now.
+        //
         _notificationThrottler = QSharedPointer<SignalThrottler>(
-            new SignalThrottler (_milliseconds, &_present.getThinkerBase())
+            new SignalThrottler (
+                _milliseconds,
+                this  // parent (must have event loop to make QTimer work)
+            )
         );
 
         connect(
