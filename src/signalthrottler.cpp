@@ -71,11 +71,6 @@ void SignalThrottler::onTimeout()
 
         _lastEmit = emitTime;
 
-      #ifndef DEBUG_LOG_THINKER
-        qDebug() << "Emitted throttled signal at "
-            << _lastEmit << "\n";
-      #endif
-
         // They would have only sent us a _nextEmit if they expected it to
         // be happening *sooner* than a pending signal.  Which means there is
         // a reschedule.  Reschedule can handle null times

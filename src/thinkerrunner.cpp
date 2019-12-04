@@ -20,7 +20,6 @@
 //
 
 #include <QMutexLocker>
-#include <QDebug>
 
 #include "thinkerqt/thinkerrunner.h"
 #include "thinkerqt/thinkermanager.h"
